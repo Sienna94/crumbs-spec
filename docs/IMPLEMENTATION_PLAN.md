@@ -1897,7 +1897,7 @@ interview·ingest·AGENTS 블록·템플릿·`check`는 바꾸지 않는다. wri
 
 | 항목 | 내용 |
 |---|---|
-| 설정 | `defaultConfig().lang = 'en'`. `validate`는 `en`·`ko`만 받고 그 밖은 `"lang" 값이 잘못됨: en 또는 ko만 지원`. `Config.lang: Lang`. |
+| 설정 | `defaultConfig().lang = 'en'`. `validate`는 `en`·`ko`만 받고 그 밖은 `crumbs.json: "lang" must be "en" or "ko"`(설정 값이 잘못된 경우는 기준 언어가 없으므로 영어). `Config.lang: Lang`. |
 | 어휘 | `headings.ts`: `Lang = 'en' \| 'ko'`, `VOCAB.en = { purpose: 'Purpose', behavior: 'Current behavior', flow: 'Flow', policies: 'Policies', evidence: 'Evidence', questions: 'Open questions', documents: 'Documents', terms: 'Terms', related: 'Related' }`. 비교 규칙(4.4.3)은 같다. 마커는 두 언어 모두 `[확인 필요]`·`[needs confirmation]`을 항상 인식한다(변경 없음). |
 | 템플릿 | `src/templates/en.ts`가 `ko.ts`와 같은 다섯 템플릿(index, overview, detail, log, rawReadme)을 영어로 둔다. 안내 주석·자리 표시·로그 머리말까지 문장 단위로 대응한다. `init`은 `lang`으로 고른다. |
 | 스킬 | `src/templates/skills-en.ts`가 `skills-ko.ts`의 네 스킬을 문장 단위로 대응해 영어로 둔다(절 제목 수와 번호 항목 수가 같다). 영어판은 `[needs confirmation]` 마커를 쓰고, 명령 예시는 같다. `skillFiles(agents, paths, lang)`. frontmatter `name`은 같고 `description`만 번역한다. |

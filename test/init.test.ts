@@ -140,7 +140,7 @@ test('34. 기존 crumbs.json: --spec-dir는 무시하고 참고를 출력하며,
   writeFileSync(join(french, 'crumbs.json'), '{"version": 1, "lang": "fr"}\n');
   const failed = runCli(['init'], french);
   assert.equal(failed.code, 2);
-  assert.ok(failed.stderr.includes('crumbs.json: "lang" 값이 잘못됨: en 또는 ko만 지원'));
+  assert.ok(failed.stderr.includes('crumbs.json: "lang" must be "en" or "ko"'));
   assert.ok(!existsSync(join(french, 'docs')), '설정 오류면 아무 파일도 만들지 않는다');
 });
 

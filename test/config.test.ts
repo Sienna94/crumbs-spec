@@ -59,7 +59,7 @@ test('70. lang: 기본값은 en이고 en과 ko만 받으며, 다른 값은 12.2�
   assert.equal(parseConfig('{"version":1}').lang, 'en');
   assert.equal(parseConfig('{"version":1,"lang":"en"}').lang, 'en');
   assert.equal(parseConfig('{"version":1,"lang":"ko"}').lang, 'ko');
-  assert.equal(messageOf('{"version":1,"lang":"fr"}'), 'crumbs.json: "lang" 값이 잘못됨: en 또는 ko만 지원');
+  assert.equal(messageOf('{"version":1,"lang":"fr"}'), 'crumbs.json: "lang" must be "en" or "ko"');
   assert.equal(messageOf('{"version":1,"lang":5}'), 'crumbs.json: "lang" has an invalid value: must be a string');
 });
 
