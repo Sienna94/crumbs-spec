@@ -2,7 +2,9 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { after, test } from 'node:test';
-import { cleanup, runCli, tempDir } from './helpers.js';
+import { en } from '../src/templates/en.js';
+import { ko } from '../src/templates/ko.js';
+import { cleanup, readRepoFile, runCli, tempDir } from './helpers.js';
 
 after(cleanup);
 
@@ -33,7 +35,7 @@ function count(text: string, needle: string): number {
 
 test('29. 빈 디렉터리 init: 일곱 파일을 만들고, 이어서 check는 문서 2개와 발견 0으로 종료 0이다', () => {
   const root = tempDir();
-  const init = runCli(['init'], root);
+  const init = runCli(['init', '--lang', 'ko'], root);
   assert.equal(init.code, 0);
   assert.ok(init.stdout.includes('다음: crumbs check'));
   for (const rel of SEVEN_FILES) {
@@ -56,7 +58,7 @@ test('29. 빈 디렉터리 init: 일곱 파일을 만들고, 이어서 check는 
 
 test('30. --spec-dir specs: 설정에 반영되고, 인덱스·로그·템플릿이 specs/ 아래에 생기며, AGENTS 블록이 specs 경로를 언급한다', () => {
   const root = tempDir();
-  const init = runCli(['init', '--spec-dir', 'specs'], root);
+  const init = runCli(['init', '--spec-dir', 'specs', '--lang', 'ko'], root);
   assert.equal(init.code, 0);
 
   const config = JSON.parse(readFileSync(join(root, 'crumbs.json'), 'utf8')) as { specDir: string };
@@ -75,7 +77,7 @@ test('30. --spec-dir specs: 설정에 반영되고, 인덱스·로그·템플릿
 
 test('31. 두 번째 실행: 아무것도 덮어쓰지 않고, 기존 파일마다 건너뜀을 출력하며, AGENTS 블록은 중복 없이 교체된다', () => {
   const root = tempDir();
-  assert.equal(runCli(['init'], root).code, 0);
+  assert.equal(runCli(['init', '--lang', 'ko'], root).code, 0);
   const before = new Map(SEVEN_FILES.map((rel) => [rel, readFileSync(join(root, rel))]));
 
   const second = runCli(['init'], root);
@@ -113,33 +115,33 @@ test('33. CLAUDE.md: @AGENTS.md가 없으면 안내만 출력하고, 있으면 �
   const withoutImport = tempDir();
   const claudeText = '# 프로젝트 지침\n';
   writeFileSync(join(withoutImport, 'CLAUDE.md'), claudeText);
-  const first = runCli(['init'], withoutImport);
+  const first = runCli(['init', '--lang', 'ko'], withoutImport);
   assert.ok(first.stdout.includes('안내: Claude Code가 crumbs 규칙을 읽도록 CLAUDE.md에 "@AGENTS.md"를 추가하세요'));
   assert.equal(readFileSync(join(withoutImport, 'CLAUDE.md'), 'utf8'), claudeText);
 
   const withImport = tempDir();
   const claudeWithImport = '# 프로젝트 지침\n\n@AGENTS.md\n';
   writeFileSync(join(withImport, 'CLAUDE.md'), claudeWithImport);
-  const second = runCli(['init'], withImport);
+  const second = runCli(['init', '--lang', 'ko'], withImport);
   assert.ok(!second.stdout.includes('안내:'));
   assert.equal(readFileSync(join(withImport, 'CLAUDE.md'), 'utf8'), claudeWithImport);
 });
 
-test('34. 기존 crumbs.json: --spec-dir는 무시하고 참고를 출력하며, lang이 en이면 init은 설정 오류로 종료 2', () => {
+test('34. 기존 crumbs.json: --spec-dir는 무시하고 참고를 출력하며, lang이 en이나 ko가 아니면 init은 설정 오류로 종료 2', () => {
   const root = tempDir();
-  writeFileSync(join(root, 'crumbs.json'), '{"version": 1, "specDir": "spec"}\n');
+  writeFileSync(join(root, 'crumbs.json'), '{"version": 1, "specDir": "spec", "lang": "ko"}\n');
   const init = runCli(['init', '--spec-dir', 'other'], root);
   assert.equal(init.code, 0);
   assert.ok(init.stdout.includes('참고: crumbs.json이 이미 있어 그 설정을 사용함 (--spec-dir 무시)'));
   assert.ok(existsSync(join(root, 'spec/index.md')));
   assert.ok(!existsSync(join(root, 'other')));
 
-  const english = tempDir();
-  writeFileSync(join(english, 'crumbs.json'), '{"version": 1, "lang": "en"}\n');
-  const failed = runCli(['init'], english);
+  const french = tempDir();
+  writeFileSync(join(french, 'crumbs.json'), '{"version": 1, "lang": "fr"}\n');
+  const failed = runCli(['init'], french);
   assert.equal(failed.code, 2);
-  assert.ok(failed.stderr.includes('crumbs.json: "lang" 값이 잘못됨: 1단계는 "ko"만 지원'));
-  assert.ok(!existsSync(join(english, 'docs')), '설정 오류면 아무 파일도 만들지 않는다');
+  assert.ok(failed.stderr.includes('crumbs.json: "lang" 값이 잘못됨: en 또는 ko만 지원'));
+  assert.ok(!existsSync(join(french, 'docs')), '설정 오류면 아무 파일도 만들지 않는다');
 });
 
 test('35. rawDir: sources: 설정대로 sources/README.md를 만들고 AGENTS 블록이 sources/를 언급한다', () => {
@@ -148,4 +150,33 @@ test('35. rawDir: sources: 설정대로 sources/README.md를 만들고 AGENTS �
   assert.equal(runCli(['init'], root).code, 0);
   assert.ok(existsSync(join(root, 'sources/README.md')));
   assert.ok(readFileSync(join(root, 'AGENTS.md'), 'utf8').includes('`sources/`'));
+});
+
+const DEFAULT_PATHS = { specDir: 'docs/specs', index: 'index.md', overview: 'overview.md', log: 'log.md', rawDir: 'docs/raw' };
+
+test('72. 기본 init은 영어: 템플릿과 AGENTS 블록이 영어이고, 설정은 lang en이며, 출력과 check 요약도 영어다', () => {
+  const root = tempDir();
+  const init = runCli(['init'], root);
+  assert.equal(init.code, 0);
+  assert.ok(init.stdout.includes('created: crumbs.json\n'));
+  assert.ok(init.stdout.endsWith('next: crumbs check\n'));
+  assert.ok(!/[가-힣]/.test(init.stdout), '출력에 한국어가 없어야 함');
+
+  const config = JSON.parse(readFileSync(join(root, 'crumbs.json'), 'utf8')) as { lang: string };
+  assert.equal(config.lang, 'en');
+  assert.equal(readRepoFile(root, 'docs/specs/templates/detail.md'), en.detail(DEFAULT_PATHS));
+  assert.ok(readRepoFile(root, 'AGENTS.md').includes('## Spec documents (crumbs)'));
+
+  const check = runCli(['check'], root);
+  assert.equal(check.stdout, 'crumbs check: 2 documents, 0 errors, 0 warnings\n');
+});
+
+test('73. init --lang ko: 한국어 템플릿과 같은 바이트, 한국어 출력, check 경고 0', () => {
+  const root = tempDir();
+  const init = runCli(['init', '--lang', 'ko'], root);
+  assert.equal(init.code, 0);
+  assert.ok(init.stdout.includes('생성: crumbs.json\n'));
+  assert.equal(readRepoFile(root, 'docs/specs/index.md'), ko.index(DEFAULT_PATHS));
+  assert.equal(readRepoFile(root, 'docs/specs/templates/detail.md'), ko.detail(DEFAULT_PATHS));
+  assert.equal(runCli(['check'], root).stdout, 'crumbs check: 문서 2개, 오류 0개, 경고 0개\n');
 });

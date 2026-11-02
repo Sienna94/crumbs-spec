@@ -1,5 +1,7 @@
 import { loadRepoConfig } from './config.js';
+import type { Lang } from './headings.js';
 import { buildGraph, relPath, type Graph } from './graph.js';
+import { MESSAGES } from './messages.js';
 import { brokenAnchor } from './rules/broken-anchor.js';
 import { brokenLink } from './rules/broken-link.js';
 import { duplicatePolicy } from './rules/duplicate-policy.js';
@@ -19,14 +21,14 @@ import { finding, type Config, type Finding, type Report } from './model.js';
 function missingTitle(graph: Graph): Finding[] {
   return graph.docs
     .filter((doc) => doc.headings[0]?.level !== 1)
-    .map((doc) => finding('missing-title', 'error', doc.file, '첫 제목은 H1이어야 함', doc.headings[0]?.line));
+    .map((doc) => finding('missing-title', 'error', doc.file, MESSAGES[graph.lang].h1Title, doc.headings[0]?.line));
 }
 
 function checkGraph(graph: Graph): Finding[] {
   if (graph.index === undefined) {
     const indexPath = relPath(graph.root, graph.indexAbs);
     // 인덱스가 없으면 다른 규칙은 돌리지 않는다.
-    return [finding('index-missing', 'error', indexPath, `인덱스 문서가 없음: ${indexPath}`)];
+    return [finding('index-missing', 'error', indexPath, MESSAGES[graph.lang].indexMissing(indexPath))];
   }
   return [
     ...missingTitle(graph),
@@ -71,7 +73,7 @@ export function runCheck(root: string, config: Config): Report {
   };
 }
 
-// configPath가 없으면 저장소 루트의 crumbs.json을 읽는다.
-export function checkRepo(root: string, configPath?: string): Report {
-  return runCheck(root, loadRepoConfig(root, configPath));
+// configPath가 없으면 저장소 루트의 crumbs.json을 읽는다. fallback은 설정을 읽기 전 오류의 언어다(--lang 또는 en).
+export function checkRepo(root: string, configPath?: string, fallback?: Lang): Report {
+  return runCheck(root, loadRepoConfig(root, configPath, fallback));
 }

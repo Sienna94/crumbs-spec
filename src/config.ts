@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join, posix, resolve } from 'node:path';
-import { VOCAB_KEYS, type VocabKey } from './headings.js';
+import { VOCAB_KEYS, isLang, type Lang, type VocabKey } from './headings.js';
+import { MESSAGES, type Messages } from './messages.js';
 import type { Config } from './model.js';
 
 // 설정 오류. 메시지는 사용자에게 그대로 보여 준다(stderr, 종료 코드 2).
@@ -13,14 +14,14 @@ function normRel(path: string): string {
   return posix.normalize(path).replace(/\/+$/, '') || '.';
 }
 
-export function defaultConfig(specDir?: string): Config {
+export function defaultConfig(specDir?: string, lang: Lang = 'en'): Config {
   return {
     version: 1,
     specDir: specDir ?? 'docs/specs',
     index: 'index.md',
     overview: 'overview.md',
     log: 'log.md',
-    lang: 'ko',
+    lang,
     headings: {},
     exclude: ['templates/'],
     codeRoot: '.',
@@ -28,49 +29,57 @@ export function defaultConfig(specDir?: string): Config {
   };
 }
 
-function fail(key: string, reason: string): never {
-  throw new ConfigError(`crumbs.json: "${key}" 값이 잘못됨: ${reason}`);
+// 설정 값 오류. 메시지 언어는 validate가 정한다.
+function fail(m: Messages, key: string, reason: string): never {
+  throw new ConfigError(m.invalid(key, reason));
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function optString(obj: Record<string, unknown>, key: string, fallback: string): string {
+// 설정 내용의 오류 메시지 언어. 값이 en·ko인 lang을 쓰고, 그 밖이면 호출자가 준 언어(--lang 또는 en)를 쓴다.
+function messageLang(raw: unknown, fallback: Lang): Lang {
+  if (isPlainObject(raw) && typeof raw.lang === 'string' && isLang(raw.lang)) return raw.lang;
+  return fallback;
+}
+
+function optString(m: Messages, obj: Record<string, unknown>, key: string, fallback: string): string {
   const value = obj[key];
   if (value === undefined) return fallback;
-  if (typeof value !== 'string') fail(key, '타입이 문자열이어야 함');
+  if (typeof value !== 'string') fail(m, key, m.reasonString);
   return value;
 }
 
-function validate(raw: unknown): Config {
-  if (!isPlainObject(raw)) throw new ConfigError('crumbs.json: 타입이 객체이어야 함');
+function validate(raw: unknown, fallback: Lang): Config {
+  const m = MESSAGES[messageLang(raw, fallback)];
+  if (!isPlainObject(raw)) throw new ConfigError(m.configNotObject);
   for (const key of Object.keys(raw)) {
-    if (!TOP_LEVEL_KEYS.includes(key)) throw new ConfigError(`crumbs.json: 알 수 없는 키 "${key}"`);
+    if (!TOP_LEVEL_KEYS.includes(key)) throw new ConfigError(m.unknownKey(key));
   }
 
   const version = raw.version;
-  if (version === undefined) fail('version', '1만 허용');
-  if (typeof version !== 'number') fail('version', '타입이 숫자이어야 함');
-  if (version !== 1) fail('version', '1만 허용');
+  if (version === undefined) fail(m, 'version', m.reasonOne);
+  if (typeof version !== 'number') fail(m, 'version', m.reasonNumber);
+  if (version !== 1) fail(m, 'version', m.reasonOne);
 
-  const specDir = normRel(optString(raw, 'specDir', 'docs/specs'));
-  if (specDir === '.') fail('specDir', '"."이나 빈 값은 안 됨');
+  const specDir = normRel(optString(m, raw, 'specDir', 'docs/specs'));
+  if (specDir === '.') fail(m, 'specDir', m.reasonDot);
 
-  const index = optString(raw, 'index', 'index.md');
-  const overview = optString(raw, 'overview', 'overview.md');
-  const log = optString(raw, 'log', 'log.md');
+  const index = optString(m, raw, 'index', 'index.md');
+  const overview = optString(m, raw, 'overview', 'overview.md');
+  const log = optString(m, raw, 'log', 'log.md');
 
-  const lang = optString(raw, 'lang', 'ko');
-  if (lang !== 'ko') fail('lang', '1단계는 "ko"만 지원');
+  const lang = optString(m, raw, 'lang', 'en');
+  if (!isLang(lang)) throw new ConfigError(m.langInvalid);
 
   const headings: Config['headings'] = {};
   if (raw.headings !== undefined) {
     const overrides = raw.headings;
-    if (!isPlainObject(overrides)) fail('headings', '타입이 객체이어야 함');
+    if (!isPlainObject(overrides)) fail(m, 'headings', m.reasonObject);
     for (const [name, text] of Object.entries(overrides)) {
-      if (!(VOCAB_KEYS as readonly string[]).includes(name)) fail('headings', `알 수 없는 어휘 키 "${name}"`);
-      if (typeof text !== 'string') fail(`headings.${name}`, '타입이 문자열이어야 함');
+      if (!(VOCAB_KEYS as readonly string[]).includes(name)) fail(m, 'headings', m.reasonUnknownHeading(name));
+      if (typeof text !== 'string') fail(m, `headings.${name}`, m.reasonString);
       headings[name as VocabKey] = text;
     }
   }
@@ -79,16 +88,16 @@ function validate(raw: unknown): Config {
   if (raw.exclude !== undefined) {
     const value = raw.exclude;
     if (!Array.isArray(value) || !value.every((item) => typeof item === 'string')) {
-      fail('exclude', '타입이 문자열 배열이어야 함');
+      fail(m, 'exclude', m.reasonStringArray);
     }
     exclude = value as string[];
   }
 
-  const codeRoot = optString(raw, 'codeRoot', '.');
+  const codeRoot = optString(m, raw, 'codeRoot', '.');
 
-  const rawDir = normRel(optString(raw, 'rawDir', 'docs/raw'));
-  if (rawDir === '.') fail('rawDir', '"."이나 빈 값은 안 됨');
-  if (rawDir === specDir || rawDir.startsWith(`${specDir}/`)) fail('rawDir', 'specDir 안에 둘 수 없음');
+  const rawDir = normRel(optString(m, raw, 'rawDir', 'docs/raw'));
+  if (rawDir === '.') fail(m, 'rawDir', m.reasonDot);
+  if (rawDir === specDir || rawDir.startsWith(`${specDir}/`)) fail(m, 'rawDir', m.reasonInsideSpec);
 
   return {
     version: 1,
@@ -96,7 +105,7 @@ function validate(raw: unknown): Config {
     index,
     overview,
     log,
-    lang: 'ko',
+    lang,
     headings,
     exclude,
     codeRoot,
@@ -104,27 +113,28 @@ function validate(raw: unknown): Config {
   };
 }
 
-export function parseConfig(text: string): Config {
+// fallback은 설정 내용이 lang으로 언어를 정하지 못할 때 쓰는 언어다(--lang 값 또는 en).
+export function parseConfig(text: string, fallback: Lang = 'en'): Config {
   let raw: unknown;
   try {
     raw = JSON.parse(text);
   } catch (error) {
     throw new ConfigError(`crumbs.json: ${error instanceof Error ? error.message : String(error)}`);
   }
-  return validate(raw);
+  return validate(raw, fallback);
 }
 
 // missingLabel은 파일이 없을 때 메시지 앞에 붙는 위치 표시다(기본 설정이면 저장소 루트).
-export function loadConfig(configPath: string, missingLabel: string): Config {
+export function loadConfig(configPath: string, missingLabel: string, fallback: Lang = 'en'): Config {
   if (!existsSync(configPath)) {
-    throw new ConfigError(`${missingLabel}에 crumbs.json이 없음. 먼저 "crumbs init"을 실행하세요.`);
+    throw new ConfigError(MESSAGES[fallback].fileMissing(missingLabel));
   }
-  return parseConfig(readFileSync(configPath, 'utf8'));
+  return parseConfig(readFileSync(configPath, 'utf8'), fallback);
 }
 
 // 저장소 설정을 읽는다. configPath가 없으면 저장소 루트의 crumbs.json이다(check와 log add가 함께 쓴다).
-export function loadRepoConfig(root: string, configPath?: string): Config {
+export function loadRepoConfig(root: string, configPath?: string, fallback: Lang = 'en'): Config {
   return configPath === undefined
-    ? loadConfig(join(root, 'crumbs.json'), root)
-    : loadConfig(resolve(configPath), resolve(configPath));
+    ? loadConfig(join(root, 'crumbs.json'), root, fallback)
+    : loadConfig(resolve(configPath), resolve(configPath), fallback);
 }

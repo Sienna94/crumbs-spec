@@ -1,5 +1,6 @@
 import type { Graph } from '../graph.js';
 import { parseLogHeading } from '../log.js';
+import { MESSAGES } from '../messages.js';
 import { finding, type Finding } from '../model.js';
 
 // kind가 decision인 항목은 본문(제목 줄 다음부터 다음 H2 직전까지)에 내부 링크가 하나 이상 있어야 한다. 없으면 제목 줄마다 경고 하나다.
@@ -16,7 +17,7 @@ export function logBody(graph: Graph): Finding[] {
     const linked = log.links.some(
       (link) => link.kind === 'internal' && link.line > heading.line && link.line < end,
     );
-    if (!linked) out.push(finding('log-body', 'warning', log.file, '결정 항목에 문서 링크가 없음', heading.line));
+    if (!linked) out.push(finding('log-body', 'warning', log.file, MESSAGES[graph.lang].decisionLink, heading.line));
   });
   return out;
 }

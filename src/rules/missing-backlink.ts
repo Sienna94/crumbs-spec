@@ -1,4 +1,5 @@
 import type { Graph } from '../graph.js';
+import { MESSAGES } from '../messages.js';
 import { finding, type Finding } from '../model.js';
 
 // (a) 개요와 상세 문서는 부모로 돌아가는 내부 링크가 있어야 한다.
@@ -12,7 +13,7 @@ export function missingBacklink(graph: Graph): Finding[] {
     if (parent === undefined) continue;
     const linksToParent = doc.links.some((link) => link.kind === 'internal' && link.path === parent.abs);
     if (!linksToParent) {
-      out.push(finding('missing-backlink', 'error', doc.file, `${parent.file}로 돌아가는 링크가 없음`));
+      out.push(finding('missing-backlink', 'error', doc.file, MESSAGES[graph.lang].backlinkMissing(parent.file)));
     }
   }
 
@@ -32,7 +33,7 @@ export function missingBacklink(graph: Graph): Finding[] {
             'missing-backlink',
             'error',
             target.file,
-            `${source.file}에서 링크했지만 되돌아가는 링크가 없음`,
+            MESSAGES[graph.lang].backlinkOneWay(source.file),
             target.title?.line,
           ),
         );

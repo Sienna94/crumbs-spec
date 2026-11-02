@@ -262,7 +262,7 @@ crumbs-spec/
   "index": "index.md",
   "overview": "overview.md",
   "log": "log.md",
-  "lang": "ko",
+  "lang": "en",
   "headings": {},
   "exclude": ["templates/"],
   "codeRoot": ".",
@@ -277,7 +277,7 @@ crumbs-spec/
 | `index` | string | `index.md` | 인덱스 파일 이름. `specDir` 기준. |
 | `overview` | string | `overview.md` | 디렉터리의 개요 문서임을 나타내는 기본 이름. |
 | `log` | string | `log.md` | 로그 문서 파일 이름. `specDir` 기준(4.4.5). |
-| `lang` | `"ko"` | `ko` | 제목 어휘와 템플릿 언어. 1단계는 `ko`만 허용하며 다른 값은 설정 오류다. 키는 영어판이 추가될 때를 위해 유지한다. |
+| `lang` | `"en"` \| `"ko"` | `en` | 스펙 문서의 언어. 제목 어휘, 템플릿, 스킬, AGENTS 블록, CLI 메시지를 모두 정한다(12절). 다른 값은 설정 오류다. |
 | `headings` | object | `{}` | 어휘 키별 override(키 목록은 4.4.3). 값은 정확한 제목 텍스트. |
 | `exclude` | string[] | `["templates/"]` | `specDir` 기준 경로 접두사. 이 아래 파일은 탐색·검사하지 않고 도달 가능할 필요도 없다. 제외된 파일*로 가는* 링크는 여전히 존재를 검사한다. |
 | `codeRoot` | string | `.` | 근거 경로를 해석하는 기준 디렉터리. 저장소 루트 기준. |
@@ -287,7 +287,7 @@ crumbs-spec/
 - 파일 없음 → `<root>에 crumbs.json이 없음. 먼저 "crumbs init"을 실행하세요.`
 - JSON 오류 → `crumbs.json: <parse error>`
 - 알 수 없는 최상위 키 → `crumbs.json: 알 수 없는 키 "<key>"`
-- 타입이 다르거나, `version !== 1`이거나, `lang`이 `ko`가 아니거나, `headings`의 키가 어휘에 없거나, `rawDir`가 `specDir`과 같거나 그 안이면 → `crumbs.json: "<key>" 값이 잘못됨: <이유>`. 이유는 각각 `타입이 <expected>이어야 함`, `1만 허용`, `1단계는 "ko"만 지원`, `알 수 없는 어휘 키 "<name>"`, `specDir 안에 둘 수 없음`, `"."이나 빈 값은 안 됨`.
+- 타입이 다르거나, `version !== 1`이거나, `headings`의 키가 어휘에 없거나, `rawDir`가 `specDir`과 같거나 그 안이면 → `crumbs.json: "<key>" 값이 잘못됨: <이유>`. 이유는 각각 `타입이 <expected>이어야 함`, `1만 허용`, `알 수 없는 어휘 키 "<name>"`, `specDir 안에 둘 수 없음`, `"."이나 빈 값은 안 됨`(영어 설정이면 영어 문장). `lang`이 `en`·`ko`가 아니면 `crumbs.json: "lang" 값이 잘못됨: en 또는 ko만 지원`(12.2 문구 그대로).
 
 ### 4.4 문서 모델
 
@@ -314,19 +314,19 @@ crumbs-spec/
 
 H2 제목이 의미를 가진다. 비교: trim, 내부 공백 하나로 압축, 대소문자 무시(`normalize('NFC')` 뒤 `toLowerCase()`).
 
-어휘는 언어별 표로 둔다(`headings.ts`의 `Record<Lang, …>`). 1단계는 `ko` 하나만 채우고, `en` 열은 영어판 브랜치에서 추가한다.
+어휘는 언어별 표로 둔다(`headings.ts`의 `Record<Lang, …>`). `en`과 `ko`를 모두 채우며, 설정의 `lang`이 어느 열을 쓸지 정한다.
 
-| 키 | 제목(`ko`) | 필수인 역할 |
-|---|---|---|
-| `purpose` | `목적` | overview, detail |
-| `behavior` | `현재 동작` | detail |
-| `flow` | `흐름` | — (선택. overview, detail 모두 둘 수 있다) |
-| `policies` | `정책` | — (선택. `###` 정책 제목을 담는다) |
-| `evidence` | `근거` | detail |
-| `questions` | `확인 필요 사항` | — (선택) |
-| `documents` | `문서 목록` | overview |
-| `terms` | `용어` | — (선택. overview에 둘 수 있다. 별칭 → 소유 문서 정책 링크만 둔다) |
-| `related` | `관련 문서` | overview, detail |
+| 키 | 제목(`ko`) | 제목(`en`) | 필수인 역할 |
+|---|---|---|---|
+| `purpose` | `목적` | `Purpose` | overview, detail |
+| `behavior` | `현재 동작` | `Current behavior` | detail |
+| `flow` | `흐름` | `Flow` | — (선택. overview, detail 모두 둘 수 있다) |
+| `policies` | `정책` | `Policies` | — (선택. `###` 정책 제목을 담는다) |
+| `evidence` | `근거` | `Evidence` | detail |
+| `questions` | `확인 필요 사항` | `Open questions` | — (선택) |
+| `documents` | `문서 목록` | `Documents` | overview |
+| `terms` | `용어` | `Terms` | — (선택. overview에 둘 수 있다. 별칭 → 소유 문서 정책 링크만 둔다) |
+| `related` | `관련 문서` | `Related` | overview, detail |
 
 인덱스 요구사항: H1 하나(규칙 `missing-title`)뿐이며 필수 절은 없다. 인덱스에 링크가 있는지는 별도 규칙으로 검사하지 않는다(`init` 뒤에는 로그 링크가 항상 하나 있고, 빠진 링크는 `unreachable`이 드러낸다). 로그 문서에도 필수 절이 없다.
 모든 문서는 첫 제목이 H1이어야 한다(규칙 `missing-title`). 뒤에 H1이 또 나와도 검사하지 않는다.
@@ -466,6 +466,7 @@ crumbs <command> [options]
 
 공통 옵션
   --root <dir>      저장소 루트 (기본값: 현재 디렉터리)
+  --lang <en|ko>    스펙 문서의 언어(init), 설정 파일을 읽기 전 오류의 언어 (기본값: en)
   -h, --help        도움말 표시
   -v, --version     버전 표시
 
@@ -477,14 +478,16 @@ check 옵션
   --config <path>        설정 파일 경로 (기본값: <root>/crumbs.json)
 ```
 
-`parseArgs({ allowPositionals: true, strict: true, options: {...} })`로 구현한다. 첫 positional이 명령이다. 언어 옵션은 없다: 1단계는 `ko`만 지원하므로 `init`은 항상 `lang: "ko"`를 쓴다. 알 수 없는 옵션, 알 수 없는 명령, 명령 없음, 잘못된 옵션 값은 `parseArgs` 오류를 잡아 한국어 메시지와 한 줄 사용법 안내를 stderr에 출력하고 종료 코드 2로 끝낸다:
+`parseArgs({ allowPositionals: true, strict: true, options: {...} })`로 구현한다. 첫 positional이 명령이다. `--lang`은 `init`이 `crumbs.json`에 쓸 언어를 고른다(기본 `en`, 12절). 다른 명령에서는 설정 파일을 읽기 전에 난 오류의 언어만 정한다. 설정을 읽은 뒤의 메시지는 설정의 `lang`을 따른다. 알 수 없는 옵션, 알 수 없는 명령, 명령 없음, 잘못된 옵션 값은 `parseArgs` 오류를 잡아 메시지와 한 줄 사용법 안내를 stderr에 출력하고 종료 코드 2로 끝낸다. 언어는 `--lang` 값(없으면 `en`)을 따른다:
 
 ```
-crumbs: 알 수 없는 옵션 "--lang"
-사용법: crumbs <init|check> [옵션]  (자세히: crumbs --help)
+crumbs: unknown option "--bogus"
+usage: crumbs <init|check|log add> [options]  (details: crumbs --help)
 ```
 
-메시지 형태: `crumbs: 알 수 없는 옵션 "<name>"`, `crumbs: 알 수 없는 명령 "<name>"`, `crumbs: 명령이 없음`, `crumbs: 옵션 "<name>"의 값이 잘못됨`. `--help`와 `--version`은 stdout에 출력하고 종료 코드 0.
+한국어 저장소에서는 `--lang ko`를 붙이거나 설정의 `lang`이 `ko`이면 `crumbs: 알 수 없는 옵션 "--bogus"`와 `사용법: crumbs <init|check|log add> [옵션]  (자세히: crumbs --help)`를 낸다.
+
+메시지 형태(영어 / 한국어): `crumbs: unknown option "<name>"` / `crumbs: 알 수 없는 옵션 "<name>"`, `crumbs: unknown command "<name>"` / `crumbs: 알 수 없는 명령 "<name>"`, `crumbs: no command given` / `crumbs: 명령이 없음`, `crumbs: option "<name>" has an invalid value` / `crumbs: 옵션 "<name>"의 값이 잘못됨`. `--help`와 `--version`은 stdout에 출력하고 종료 코드 0.
 
 종료 코드:
 
@@ -529,7 +532,7 @@ JSON(`--format json`), 공백 2칸으로 정렬한 `Report` 타입 그대로:
 ### 4.9 `crumbs init` 스캐폴딩
 
 동작:
-1. `root`를 정한다. `crumbs.json`이 있으면 읽어서 모든 값을 그 설정에서 가져온다(`--spec-dir`는 무시하고 `참고: crumbs.json이 이미 있어 그 설정을 사용함 (--spec-dir 무시)`를 출력). 없으면 4.3 기본값에 주어진 옵션을 적용해 쓴다. `lang`은 항상 `ko`다. 기존 설정이 4.3 검증에 실패하면 `check`와 같은 메시지로 종료 코드 2.
+1. `root`를 정한다. `crumbs.json`이 있으면 읽어서 모든 값을 그 설정에서 가져온다(`--spec-dir`는 무시하고 `참고: crumbs.json이 이미 있어 그 설정을 사용함 (--spec-dir 무시)`를 출력). 없으면 4.3 기본값에 주어진 옵션을 적용해 쓴다. `lang`은 `--lang`(기본 `en`)을 따르고 `crumbs.json`에 쓴다. 기존 설정이 있으면 `--lang`은 무시하고 `참고: ... (--lang 무시)`를 출력한다. 기존 설정이 4.3 검증에 실패하면 `check`와 같은 메시지로 종료 코드 2.
 2. 없을 때만 만든다(파일마다 `생성: <path>` 또는 `이미 있음, 건너뜀: <path>` 출력):
    - `<specDir>/index.md`
    - `<specDir>/<log>`(첫 항목의 날짜는 init 시점의 로컬 날짜, `YYYY-MM-DD`)
@@ -540,7 +543,7 @@ JSON(`--format json`), 공백 2칸으로 정렬한 `Report` 타입 그대로:
 4. 루트에 `CLAUDE.md`가 있고 `@AGENTS.md` 문자열이 없으면 안내를 출력한다: `안내: Claude Code가 crumbs 규칙을 읽도록 CLAUDE.md에 "@AGENTS.md"를 추가하세요`. `CLAUDE.md`는 고치지 않는다(5절 Q5).
 5. `다음: crumbs check`를 출력하고 종료 코드 0.
 
-템플릿 내용(한국어). 자리 표시는 꺾쇠괄호로 적어 실제 인덱스에서 `check`가 보지 않게 한다. 템플릿은 기본값으로 제외되는 `templates/` 아래에 둔다.
+템플릿 내용은 `lang`에 따라 `src/templates/en.ts`(기본) 또는 `ko.ts`에서 온다(12절). 아래 예는 한국어 원문이다. 자리 표시는 꺾쇠괄호로 적어 실제 인덱스에서 `check`가 보지 않게 한다. 템플릿은 기본값으로 제외되는 `templates/` 아래에 둔다.
 
 `index.md`:
 

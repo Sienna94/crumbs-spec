@@ -1,4 +1,5 @@
 import { isFile, slugsOf, type Graph } from '../graph.js';
+import { MESSAGES } from '../messages.js';
 import { finding, type Finding } from '../model.js';
 
 // 존재하는 .md 대상의 fragment가 그 파일의 제목 슬러그와 맞아야 한다. .md가 아닌 대상은 검사하지 않는다.
@@ -11,7 +12,7 @@ export function brokenAnchor(graph: Graph): Finding[] {
       const slugs = slugsOf(graph, link.path);
       if (slugs === undefined) continue;
       if (!slugs.has(link.fragment.normalize('NFC').toLowerCase())) {
-        out.push(finding('broken-anchor', 'error', doc.file, `앵커가 없음: ${link.rawTarget}`, link.line));
+        out.push(finding('broken-anchor', 'error', doc.file, MESSAGES[graph.lang].anchorMissing(link.rawTarget), link.line));
       }
     }
   }

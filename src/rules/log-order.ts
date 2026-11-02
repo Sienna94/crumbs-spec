@@ -1,5 +1,6 @@
 import type { Graph } from '../graph.js';
 import { parseLogHeading } from '../log.js';
+import { MESSAGES } from '../messages.js';
 import { finding, type Finding } from '../model.js';
 
 // 형식이 맞는 항목들은 파일 순서대로 날짜가 늘어나야 한다. 바로 앞의 형식 맞는 항목보다 앞선 날짜마다 경고 하나다.
@@ -14,7 +15,7 @@ export function logOrder(graph: Graph): Finding[] {
     if (!parsed.ok) continue;
     if (previous !== undefined && parsed.date < previous) {
       out.push(
-        finding('log-order', 'warning', log.file, `이전 항목(${previous})보다 날짜가 앞섬: ${parsed.date}`, heading.line),
+        finding('log-order', 'warning', log.file, MESSAGES[graph.lang].logOrder(previous, parsed.date), heading.line),
       );
     }
     previous = parsed.date;

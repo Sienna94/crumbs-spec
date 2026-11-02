@@ -1,4 +1,5 @@
 import { relPath, type Graph } from '../graph.js';
+import { MESSAGES } from '../messages.js';
 import { finding, type Finding } from '../model.js';
 
 // 인덱스에서 내부 링크만 따라 도달할 수 없는 탐색된 문서를 찾는다.
@@ -20,5 +21,5 @@ export function unreachable(graph: Graph): Finding[] {
   const indexPath = relPath(graph.root, graph.indexAbs);
   return graph.docs
     .filter((doc) => !seen.has(doc))
-    .map((doc) => finding('unreachable', 'error', doc.file, `${indexPath}에서 도달할 수 없음`));
+    .map((doc) => finding('unreachable', 'error', doc.file, MESSAGES[graph.lang].unreachable(indexPath)));
 }

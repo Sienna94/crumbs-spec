@@ -1,4 +1,4 @@
-import type { VocabKey } from './headings.js';
+import type { Lang, VocabKey } from './headings.js';
 
 export type Role = 'index' | 'log' | 'overview' | 'detail';
 
@@ -8,7 +8,7 @@ export interface Config {
   index: string;
   overview: string;
   log: string;
-  lang: 'ko';
+  lang: Lang;
   headings: Partial<Record<VocabKey, string>>;
   exclude: string[];
   codeRoot: string;

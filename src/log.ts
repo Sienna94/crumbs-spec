@@ -2,6 +2,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { isCalendarDate, localDate } from './dates.js';
 import type { Config } from './model.js';
+import { MESSAGES } from './messages.js';
 
 // 로그 항목의 kind(4.4.5). 2단계는 lint와 drift를 쓰는 도구를 만들지 않지만 값은 모두 받는다.
 // decision은 확인 필요 질문이 답을 얻어 확정된 정책이나 확정 정책의 값·조건이 바뀐 결정이다(11.2).
@@ -60,7 +61,7 @@ function logRelPath(config: Config): string {
 export function assertLogDocument(root: string, config: Config): void {
   const rel = logRelPath(config);
   if (!existsSync(join(root, rel))) {
-    throw new LogError(`로그 문서가 없음: ${rel}. 먼저 "crumbs init"을 실행하세요.`);
+    throw new LogError(MESSAGES[config.lang].logDocMissing(rel));
   }
 }
 
@@ -74,5 +75,5 @@ export function addLogEntry(root: string, config: Config, kind: LogKind, title: 
   const entry = text === undefined ? `## ${heading}` : `## ${heading}\n${text}`;
   const current = readFileSync(abs, 'utf8').replace(/[\r\n]+$/, '');
   writeFileSync(abs, current === '' ? `${entry}\n` : `${current}\n\n${entry}\n`);
-  return `추가: ${rel} — ${heading}`;
+  return MESSAGES[config.lang].logAdded(rel, heading);
 }

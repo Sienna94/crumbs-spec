@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { after, test } from 'node:test';
 import type { TemplatePaths } from '../src/templates/ko.js';
 import { SKILL_NAMES } from '../src/skills.js';
+import { skillsEn } from '../src/templates/skills-en.js';
 import { skillsKo } from '../src/templates/skills-ko.js';
 import { baseGraph, cleanup, makeRepo, readRepoFile, runCli, skillPath, tempDir } from './helpers.js';
 
@@ -43,7 +44,7 @@ function snapshot(root: string): Map<string, Buffer> {
 
 test('48. init --skills claude: 일곱 파일과 Claude 스킬 4개를 만들고, 스킬 줄은 다섯 파일 줄 뒤와 AGENTS 줄 앞에 나오며, .agents/는 없다', () => {
   const root = tempDir();
-  const result = runCli(['init', '--skills', 'claude'], root);
+  const result = runCli(['init', '--lang', 'ko', '--skills', 'claude'], root);
   assert.equal(result.code, 0);
   for (const rel of SEVEN_FILES) assert.ok(existsSync(join(root, rel)), `있어야 함: ${rel}`);
   for (const name of SKILL_NAMES) assert.ok(existsSync(join(root, skillPath('claude', name))), `스킬: ${name}`);
@@ -78,7 +79,7 @@ test('49. --skills codex와 all: codex는 .agents/skills/ 아래 4개만 만들�
 
 test('50. --skills 없음: 스킬을 만들지 않고 stdout은 1단계 출력과 같다', () => {
   const root = tempDir();
-  const result = runCli(['init'], root);
+  const result = runCli(['init', '--lang', 'ko'], root);
   assert.equal(result.code, 0);
   assert.ok(!existsSync(join(root, '.claude')));
   assert.ok(!existsSync(join(root, '.agents')));
@@ -99,7 +100,7 @@ test('50. --skills 없음: 스킬을 만들지 않고 stdout은 1단계 출력�
 
 test('51. 이미 초기화된 저장소: init 뒤 --skills all은 스킬 8개만 더하고, 다시 실행하면 15개 파일이 바이트 단위로 그대로이며, 고친 SKILL.md는 보존된다', () => {
   const root = tempDir();
-  assert.equal(runCli(['init'], root).code, 0);
+  assert.equal(runCli(['init', '--lang', 'ko'], root).code, 0);
 
   const second = runCli(['init', '--skills', 'all'], root);
   assert.equal(second.code, 0);
@@ -173,7 +174,7 @@ test('53. 옵션 오류: --skills 값이 잘못되면 종료 2와 메시지를 �
     ['init', '--skills'],
   ]) {
     const root = tempDir();
-    const result = runCli(args, root);
+    const result = runCli(['--lang', 'ko', ...args], root);
     assert.equal(result.code, 2, args.join(' '));
     assert.ok(result.stderr.includes('crumbs: 옵션 "--skills"의 값이 잘못됨'), args.join(' '));
     assert.ok(result.stderr.includes('사용법: crumbs'), args.join(' '));
@@ -182,7 +183,7 @@ test('53. 옵션 오류: --skills 값이 잘못되면 종료 2와 메시지를 �
   }
 
   const root = makeRepo(baseGraph());
-  const check = runCli(['check', '--skills', 'all'], root);
+  const check = runCli(['--lang', 'ko', 'check', '--skills', 'all'], root);
   assert.equal(check.code, 2);
   assert.ok(check.stderr.includes('crumbs: 알 수 없는 옵션 "--skills"'));
 
@@ -193,7 +194,7 @@ test('53. 옵션 오류: --skills 값이 잘못되면 종료 2와 메시지를 �
 
 test('54. 도움말과 사용법: --help에 log add, --skills, --kind, log add 옵션, 예와 기존 절이 있고, 알 수 없는 명령의 사용법 줄이 바뀐다', () => {
   const root = tempDir();
-  const help = runCli(['--help'], root);
+  const help = runCli(['--lang', 'ko', '--help'], root);
   assert.equal(help.code, 0);
   for (const text of [
     'log add',
@@ -207,7 +208,7 @@ test('54. 도움말과 사용법: --help에 log add, --skills, --kind, log add �
     assert.ok(help.stdout.includes(text), text);
   }
 
-  const unknown = runCli(['frobnicate'], root);
+  const unknown = runCli(['--lang', 'ko', 'frobnicate'], root);
   assert.equal(unknown.code, 2);
   assert.ok(unknown.stderr.includes('사용법: crumbs <init|check|log add> [옵션]  (자세히: crumbs --help)'));
 });
@@ -341,7 +342,45 @@ test('63. decision 규약: writer 본문에 결과·이유·문서 규약과 dec
   assert.ok(!ingestLog.includes('수정: <문서 경로들>'), 'ingest: 옛 수정 형식 없음');
 
   const root = tempDir();
-  assert.equal(runCli(['init'], root).code, 0);
+  assert.equal(runCli(['init', '--lang', 'ko'], root).code, 0);
   assert.ok(readRepoFile(root, 'AGENTS.md').includes('(kind: ingest, query, lint, drift, change, decision).'), 'AGENTS 블록');
   assert.ok(readRepoFile(root, 'docs/specs/log.md').includes('kind ∈ ingest | query | lint | drift | change | decision.'), '로그 머리말');
 });
+
+// 줄 단위 구조: H2 제목 수와 번호 항목 수. 한국어와 영어 스킬이 같은 구조인지 본다.
+function shapeOf(text: string): { h2: number; numbered: number } {
+  const lines = text.split('\n');
+  return {
+    h2: lines.filter((line) => line.startsWith('## ')).length,
+    numbered: lines.filter((line) => /^\s*\d+\. /.test(line)).length,
+  };
+}
+
+test('77. --lang en --skills all: 영어 스킬 8개를 설치하고 같은 이름끼리 바이트가 같으며, writer에 영어 규약 문장이 있다', () => {
+  const root = tempDir();
+  assert.equal(runCli(['init', '--lang', 'en', '--skills', 'all'], root).code, 0);
+  for (const name of SKILL_NAMES) {
+    for (const agent of SKILL_AGENTS) {
+      assert.equal(readRepoFile(root, skillPath(agent, name)), skillsEn[name](DEFAULT_PATHS), `${agent}: ${name}`);
+    }
+  }
+  const writer = readRepoFile(root, skillPath('claude', 'crumbs-writer'));
+  for (const text of ['## Reflect a change', '## Document existing code (first write)', '--kind change', '[needs confirmation]', 'concepts/', 'log add']) {
+    assert.ok(writer.includes(text), `writer: ${text}`);
+  }
+  assert.ok(readRepoFile(root, 'AGENTS.md').includes('## Spec documents (crumbs)'));
+});
+
+test('78. 영어와 한국어 스킬의 구조: 네 스킬 모두 H2 수와 번호 항목 수가 같고, 영어 스킬은 150줄 이하이며 한국어 마커가 없다', () => {
+  for (const name of SKILL_NAMES) {
+    const english = skillsEn[name](DEFAULT_PATHS);
+    const korean = skillsKo[name](DEFAULT_PATHS);
+    assert.deepEqual(shapeOf(english), shapeOf(korean), name);
+    assert.equal(english.split('\n')[1], `name: ${name}`, name);
+    const lines = english.replace(/\n$/, '').split('\n').length;
+    assert.ok(lines <= 150, `${name} 줄 수: ${lines}`);
+    assert.ok(!english.includes('[확인 필요]'), `${name}: 한국어 마커`);
+  }
+  assert.ok(skillsEn['crumbs-interview'](DEFAULT_PATHS).includes('[needs confirmation]'));
+});
+

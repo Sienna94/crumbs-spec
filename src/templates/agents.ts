@@ -1,3 +1,5 @@
+import type { Lang } from '../headings.js';
+
 export const AGENTS_START = '<!-- crumbs:start -->';
 export const AGENTS_END = '<!-- crumbs:end -->';
 
@@ -8,8 +10,12 @@ export interface AgentsPaths {
   rawDir: string;
 }
 
-// AGENTS.md에 들어가는 자기 표시 블록(한국어). 경로는 설정 값으로 바꿔 넣는다.
-export function agentsBlock(p: AgentsPaths): string {
+// AGENTS.md에 들어가는 자기 표시 블록. 경로는 설정 값으로 바꿔 넣는다. 표시 두 줄은 두 언어가 같다.
+export function agentsBlock(p: AgentsPaths, lang: Lang): string {
+  return lang === 'en' ? agentsBlockEn(p) : agentsBlockKo(p);
+}
+
+function agentsBlockKo(p: AgentsPaths): string {
   return `${AGENTS_START}
 ## 스펙 문서 (crumbs)
 
@@ -31,5 +37,29 @@ export function agentsBlock(p: AgentsPaths): string {
   \`## [YYYY-MM-DD] kind | 제목\` 형식으로 항목을 추가한다
   (kind: ingest, query, lint, drift, change, decision).
 - 마치기 전에 \`npx crumbs-spec check\`를 실행하고 보고된 오류를 모두 고친다.
+${AGENTS_END}`;
+}
+
+function agentsBlockEn(p: AgentsPaths): string {
+  return `${AGENTS_START}
+## Spec documents (crumbs)
+
+Spec documents live under \`${p.specDir}/\` and describe how the system works now.
+Always read \`${p.specDir}/${p.index}\` first. Raw source material under \`${p.rawDir}/\` is read-only.
+
+Navigation order: index → domain overview → detail document → that document's "Related" section.
+Stop as soon as you find the document that owns the answer, and quote it.
+
+Rules when behavior changes:
+- Every policy is owned by exactly one detail document. Even if nobody asks you to update the document,
+  update it in the same change as the code.
+- Describe the current behavior, not the change. Do not add change history or requirement IDs.
+- List the code you relied on in the "Evidence" section. Keep links in both directions: detail documents link to the overview
+  and related documents, and those documents link back.
+- If code, tests, or approved material cannot confirm a policy, write \`[needs confirmation]\` and a question.
+  Do not guess.
+- After reflecting new material or changing a document, add an entry to \`${p.specDir}/${p.log}\` in the form
+  \`## [YYYY-MM-DD] kind | title\` (kind: ingest, query, lint, drift, change, decision).
+- Before finishing, run \`npx crumbs-spec check\` and fix every reported error.
 ${AGENTS_END}`;
 }

@@ -1,14 +1,39 @@
 {
   "name": "crumbs-spec",
   "version": "0.1.0",
-  "description": "Living, responsibility-owned spec docs for AI coding agents, connected as a verified link graph.",
+  "description": "Living specs for coding agents: one owner per policy, a machine-checked link graph, and skills that write, find, ask and ingest.",
+  "keywords": [
+    "spec",
+    "specification",
+    "living-documentation",
+    "coding-agents",
+    "claude-code",
+    "codex",
+    "agent-skills",
+    "markdown",
+    "lint",
+    "link-graph",
+    "llm-wiki"
+  ],
+  "author": "sienna <siennachang.dev@gmail.com>",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Sienna94/crumbs-spec.git"
+  },
+  "homepage": "https://github.com/Sienna94/crumbs-spec#readme",
+  "bugs": {
+    "url": "https://github.com/Sienna94/crumbs-spec/issues"
+  },
   "type": "module",
   "bin": {
     "crumbs": "dist/src/cli.js"
   },
   "files": [
-    "dist/src"
+    "dist/src",
+    "README.md",
+    "README.ko.md",
+    "LICENSE"
   ],
   "engines": {
     "node": ">=20"

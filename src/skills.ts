@@ -1,4 +1,6 @@
+import type { Lang } from './headings.js';
 import type { TemplatePaths } from './templates/ko.js';
+import { skillsEn } from './templates/skills-en.js';
 import { skillsKo } from './templates/skills-ko.js';
 
 // 스킬 이름. 디렉터리 이름이자 frontmatter의 name이다(6.3.1).
@@ -16,8 +18,9 @@ export function agentsOf(option: 'claude' | 'codex' | 'all'): SkillAgent[] {
 }
 
 // [저장소 기준 경로, 내용] 목록을 돌려준다. 순서는 agents 순서 × SKILL_NAMES 순서다. 파일은 쓰지 않는다.
-export function skillFiles(agents: SkillAgent[], paths: TemplatePaths): Array<[string, string]> {
+export function skillFiles(agents: SkillAgent[], paths: TemplatePaths, lang: Lang): Array<[string, string]> {
+  const skills = lang === 'en' ? skillsEn : skillsKo;
   return agents.flatMap((agent) =>
-    SKILL_NAMES.map((name): [string, string] => [`${SKILL_ROOTS[agent]}/${name}/SKILL.md`, skillsKo[name](paths)]),
+    SKILL_NAMES.map((name): [string, string] => [`${SKILL_ROOTS[agent]}/${name}/SKILL.md`, skills[name](paths)]),
   );
 }

@@ -1,6 +1,10 @@
 import type { Role } from './model.js';
 
-export type Lang = 'ko';
+export type Lang = 'en' | 'ko';
+
+export function isLang(value: string): value is Lang {
+  return value === 'en' || value === 'ko';
+}
 
 export type VocabKey = 'purpose' | 'behavior' | 'flow' | 'policies' | 'evidence' | 'questions' | 'documents' | 'terms' | 'related';
 
@@ -16,8 +20,19 @@ export const VOCAB_KEYS: readonly VocabKey[] = [
   'related',
 ];
 
-// 언어별 제목 어휘. 1단계는 ko만 채운다. 영어판은 en 열을 같은 구조로 더한다.
+// 언어별 제목 어휘(4.4.3). 두 언어 모두 같은 키 집합을 가진다.
 export const VOCAB: Record<Lang, Record<VocabKey, string>> = {
+  en: {
+    purpose: 'Purpose',
+    behavior: 'Current behavior',
+    flow: 'Flow',
+    policies: 'Policies',
+    evidence: 'Evidence',
+    questions: 'Open questions',
+    documents: 'Documents',
+    terms: 'Terms',
+    related: 'Related',
+  },
   ko: {
     purpose: '목적',
     behavior: '현재 동작',

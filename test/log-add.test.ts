@@ -121,7 +121,7 @@ test('40. 오류: 6.4.2 표의 조건마다 종료 2와 정해진 메시지를 �
     [['log', 'remove'], '알 수 없는 명령 "log remove"', true],
   ];
   for (const [args, message, withUsage] of cases) {
-    const result = runCli(args, root);
+    const result = runCli(['--lang', 'ko', ...args], root);
     assert.equal(result.code, 2, args.join(' '));
     assert.ok(result.stderr.includes(`crumbs: ${message}`), `${args.join(' ')} → ${result.stderr}`);
     assert.equal(result.stderr.includes(USAGE), withUsage, args.join(' '));
@@ -156,7 +156,7 @@ test('41. 명령별 옵션 거부: 명령이 받지 않는 옵션은 "알 수 �
     [['log', 'add', '--kind', 'change', 'x', '--skills', 'all'], '알 수 없는 옵션 "--skills"'],
   ];
   for (const [args, message] of cases) {
-    const result = runCli(args, root);
+    const result = runCli(['--lang', 'ko', ...args], root);
     assert.equal(result.code, 2, args.join(' '));
     assert.ok(result.stderr.includes(`crumbs: ${message}`), args.join(' '));
     assert.equal(logOf(root), before, args.join(' '));

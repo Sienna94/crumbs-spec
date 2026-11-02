@@ -1,4 +1,5 @@
 import type { Graph } from '../graph.js';
+import { MESSAGES } from '../messages.js';
 import { finding, type Finding, type Heading, type SpecDoc } from '../model.js';
 
 // 정책 이름은 문서 하나만 소유한다. 로그 문서는 면제다.
@@ -33,7 +34,7 @@ export function duplicatePolicy(graph: Graph): Finding[] {
           'duplicate-policy',
           'error',
           doc.file,
-          `중복 정책 "${first.heading.text}": ${others}에도 있음`,
+          MESSAGES[graph.lang].duplicatePolicy(first.heading.text, others),
           first.heading.line,
         ),
       );

@@ -38,7 +38,7 @@ LLM Wiki에서는 원본/위키/스키마 분리, 인덱스 우선, 추가 전�
 - **사람 우선의 본문.** ID, 상태 표, 문법 강제가 없어요. 탐색 정보는 링크와 제목에만 둬요.
 - **검사는 결정론적으로, 판단은 사람과 스킬이.** `check`는 구조만 봐요. 문체·내용·노후 판정은 스킬 지침과 사람이 맡아요.
 - **결정은 한 곳에.** 질문이 답을 얻으면 로그에 `decision` 항목을 남기고 문서는 날짜 링크 하나로 그 결정을 가리켜요.
-- **한국어 먼저.** 템플릿, 메시지, 스킬이 모두 한국어예요. 영어판은 별도 브랜치로 만들 예정이에요.
+- **두 언어.** `crumbs.json`의 `lang`이 저장소 전체의 템플릿, 스킬, 메시지, AGENTS 블록 언어를 정해요. 기본값은 영어(`en`)이고 `ko`를 쓰면 한국어가 돼요.
 
 ## 실제로 써 보니
 
@@ -74,6 +74,8 @@ npx crumbs-spec init --skills all   # 문서 구조 + 에이전트 스킬 4종
 npx crumbs-spec init                # 문서 구조만
 npx crumbs-spec check               # 링크 그래프와 구조 검사
 ```
+
+한국어 저장소는 `--lang ko`를 붙여요.
 
 `init`은 다음 일곱 파일을 만들고, 이미 있는 파일은 절대 덮어쓰지 않아요.
 
@@ -212,12 +214,12 @@ flowchart TD
 ## 명령
 
 ```bash
-npx crumbs-spec init [--spec-dir <dir>] [--skills <claude|codex|all>]
+npx crumbs-spec init [--spec-dir <dir>] [--lang <en|ko>] [--skills <claude|codex|all>]
 npx crumbs-spec check [--format text|json] [--config <path>]
 npx crumbs-spec log add --kind <ingest|query|lint|drift|change|decision> "<제목>" [--body "<본문>"]
 ```
 
-공통 옵션은 `--root <dir>`(저장소 루트, 기본값은 현재 디렉터리), `-h`/`--help`, `-v`/`--version`이에요. 설정은 저장소 루트의 `crumbs.json`에 둬요(`specDir`, `index`, `overview`, `log`, `headings`, `exclude`, `codeRoot`, `rawDir`).
+공통 옵션은 `--root <dir>`(저장소 루트, 기본값은 현재 디렉터리), `--lang <en|ko>`(init이 쓸 언어, 설정을 읽기 전 오류의 언어, 기본값 `en`), `-h`/`--help`, `-v`/`--version`이에요. 설정은 저장소 루트의 `crumbs.json`에 둬요(`specDir`, `index`, `overview`, `log`, `lang`, `headings`, `exclude`, `codeRoot`, `rawDir`).
 
 `check`의 출력은 `파일:줄 심각도 규칙: 메시지` 한 줄씩이고 마지막 줄이 요약이에요.
 

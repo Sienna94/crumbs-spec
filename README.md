@@ -38,7 +38,7 @@ From LLM Wiki we kept the raw/wiki/schema split, index-first navigation, the app
 - **People-first prose.** No IDs, no status tables, no enforced grammar. Navigation lives in links and headings only.
 - **Deterministic checks, human judgement.** `check` looks at structure only. Style, content and staleness are for skill guidance and people.
 - **Decisions in one place.** When a question gets its answer, a `decision` entry goes into the log and the document points at it with a single dated link.
-- **Korean first.** Templates, messages and skills are Korean. The English edition of the tool itself is planned as a separate branch; this README is the English guide.
+- **Two languages.** `lang` in `crumbs.json` selects the language of the templates, skills, messages and AGENTS block for the whole repository. It defaults to English (`en`); `ko` gives Korean. This README is the English guide.
 
 ## What happened when we used it
 
@@ -74,6 +74,8 @@ npx crumbs-spec init --skills all   # document structure + the four agent skills
 npx crumbs-spec init                # document structure only
 npx crumbs-spec check               # check the link graph and structure
 ```
+
+Korean repositories: pass `--lang ko`.
 
 `init` creates these seven files and never overwrites an existing one.
 
@@ -152,7 +154,7 @@ docs/specs/concepts/             concepts shared by several domains (optional)
 docs/raw/                        immutable sources such as contracts and plans
 ```
 
-The sections of a detail document are fixed. Headings are Korean by default and can be renamed through `headings` in `crumbs.json`.
+The sections of a detail document are fixed. Headings follow `lang` (English by default, Korean with `lang: ko`) and can be renamed through `headings` in `crumbs.json`.
 
 | Section | Content |
 |---|---|
@@ -212,12 +214,12 @@ The overview's `## 용어` (terms) section is a list of aliases linked to the ow
 ## Commands
 
 ```bash
-npx crumbs-spec init [--spec-dir <dir>] [--skills <claude|codex|all>]
+npx crumbs-spec init [--spec-dir <dir>] [--lang <en|ko>] [--skills <claude|codex|all>]
 npx crumbs-spec check [--format text|json] [--config <path>]
 npx crumbs-spec log add --kind <ingest|query|lint|drift|change|decision> "<title>" [--body "<body>"]
 ```
 
-Common options are `--root <dir>` (repository root, default: current directory), `-h`/`--help` and `-v`/`--version`. Configuration lives in `crumbs.json` at the repository root (`specDir`, `index`, `overview`, `log`, `headings`, `exclude`, `codeRoot`, `rawDir`).
+Common options are `--root <dir>` (repository root, default: current directory), `--lang <en|ko>` (language for `init`; errors raised before `crumbs.json` is read; default `en`), `-h`/`--help` and `-v`/`--version`. Configuration lives in `crumbs.json` at the repository root (`specDir`, `index`, `overview`, `log`, `lang`, `headings`, `exclude`, `codeRoot`, `rawDir`).
 
 `check` prints one line per finding as `file:line severity rule: message`, and a summary last.
 
@@ -363,4 +365,4 @@ Exit code 1 means there are errors. Warnings (`open-question`, `missing-flow` an
 | 4 | `crumbs drift --base <ref>` — finds documents whose evidence changed in a diff | planned |
 | 5 | Example app and a navigation-cost benchmark runner | planned |
 
-Korean comes first (`lang: ko`); an English edition of the templates, messages and skills is planned as a separate branch.
+The `lang` setting (`en` by default, `ko` for Korean) selects the language of the templates, skills and messages, so one repository uses one language.

@@ -1,6 +1,6 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { basename, dirname, join, relative, resolve, sep } from 'node:path';
-import { VOCAB, type VocabKey } from './headings.js';
+import { VOCAB, type Lang, type VocabKey } from './headings.js';
 import {
   buildSections,
   classifyTarget,
@@ -13,6 +13,8 @@ import type { Config, EvidencePath, Link, Role, SpecDoc } from './model.js';
 export interface Graph {
   root: string;
   config: Config;
+  // 규칙 메시지 언어(설정의 lang)
+  lang: Lang;
   vocab: Record<VocabKey, string>;
   specAbs: string;
   indexAbs: string;
@@ -185,7 +187,7 @@ export function buildGraph(root: string, config: Config): Graph {
     doc.parent = parent ?? index;
   }
 
-  return { root, config, vocab, specAbs, indexAbs, logAbs, docs, byAbs, index, slugCache: new Map() };
+  return { root, config, lang: config.lang, vocab, specAbs, indexAbs, logAbs, docs, byAbs, index, slugCache: new Map() };
 }
 
 // 문서 또는 임의의 .md 파일의 제목 슬러그 집합. 그래프 밖 파일은 한 번만 읽는다.

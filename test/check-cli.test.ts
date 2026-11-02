@@ -67,20 +67,20 @@ test('27. 명령줄 오류: 설정 없음은 init 안내와 함께 종료 2, 알
   assert.ok(noConfig.stderr.includes('crumbs init'));
 
   const root = makeRepo(baseGraph());
-  const unknownCommand = runCli(['frobnicate'], root);
+  const unknownCommand = runCli(['--lang', 'ko', 'frobnicate'], root);
   assert.equal(unknownCommand.code, 2);
   assert.ok(unknownCommand.stderr.includes('알 수 없는 명령'));
   assert.ok(unknownCommand.stderr.includes('사용법: crumbs <init|check|log add> [옵션]  (자세히: crumbs --help)'));
 
-  const unknownOption = runCli(['check', '--lang', 'ko'], root);
+  const unknownOption = runCli(['--lang', 'ko', 'check', '--bogus'], root);
   assert.equal(unknownOption.code, 2);
-  assert.ok(unknownOption.stderr.includes('알 수 없는 옵션 "--lang"'));
+  assert.ok(unknownOption.stderr.includes('알 수 없는 옵션 "--bogus"'));
 
   const version = runCli(['--version'], root);
   assert.equal(version.code, 0);
   assert.equal(version.stdout.trim(), packageVersionString());
 
-  const help = runCli(['--help'], root);
+  const help = runCli(['--lang', 'ko', '--help'], root);
   assert.equal(help.code, 0);
   assert.ok(help.stdout.includes('명령'));
   assert.ok(help.stdout.includes('check 옵션'));

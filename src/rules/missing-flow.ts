@@ -1,4 +1,5 @@
 import type { Graph } from '../graph.js';
+import { MESSAGES } from '../messages.js';
 import { finding, type Finding } from '../model.js';
 
 // 상세 문서의 "현재 동작"이 여섯 단계 이상인데 흐름 도식(mermaid 펜스)도 표도 없으면 경고 하나를 낸다.
@@ -14,7 +15,7 @@ export function missingFlow(graph: Graph): Finding[] {
         'missing-flow',
         'warning',
         doc.file,
-        `현재 동작이 ${behaviorBullets}단계인데 흐름 도식이나 표가 없음`,
+        MESSAGES[graph.lang].flowMissing(behaviorBullets),
         behavior?.heading.line,
       ),
     );

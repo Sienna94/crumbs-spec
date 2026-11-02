@@ -1,5 +1,6 @@
 import { SECTION_ORDER, isRequiredRole } from '../headings.js';
 import type { Graph } from '../graph.js';
+import { MESSAGES } from '../messages.js';
 import { finding, type Finding, type Section } from '../model.js';
 
 // 개요와 상세 문서의 H2 절 순서를 검사한다. 첫 절은 목적, 마지막 절은 관련 문서여야 하고,
@@ -16,14 +17,14 @@ export function sectionOrder(graph: Graph): Finding[] {
     const first = sections[0];
     if (first.key !== 'purpose') {
       out.push(
-        finding('section-order', 'warning', doc.file, `첫 절은 "## ${graph.vocab.purpose}"이어야 함`, first.heading.line),
+        finding('section-order', 'warning', doc.file, MESSAGES[graph.lang].sectionFirst(graph.vocab.purpose), first.heading.line),
       );
     }
 
     const last = sections[sections.length - 1];
     if (last.key !== 'related') {
       out.push(
-        finding('section-order', 'warning', doc.file, `마지막 절은 "## ${graph.vocab.related}"이어야 함`, last.heading.line),
+        finding('section-order', 'warning', doc.file, MESSAGES[graph.lang].sectionLast(graph.vocab.related), last.heading.line),
       );
     }
 
@@ -41,7 +42,7 @@ export function sectionOrder(graph: Graph): Finding[] {
               'section-order',
               'warning',
               doc.file,
-              `"## ${graph.vocab[section.key]}" 절은 "## ${graph.vocab[top]}" 앞에 와야 함`,
+              MESSAGES[graph.lang].sectionOrder(graph.vocab[section.key], graph.vocab[top]),
               section.heading.line,
             ),
           );

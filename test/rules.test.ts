@@ -444,3 +444,130 @@ test('39. section-order: 첫 절이 목적이 아니거나 마지막 절이 관�
   assert.equal(cli.code, 0);
   assert.match(cli.stdout, /section-order/);
 });
+
+// 영어 어휘로 쓴 픽스처(lang en). 상세 문서 하나와 개요 하나, 인덱스와 로그로 이루어진다.
+const LOGIN_EN = [
+  '# Login session',
+  '',
+  '## Purpose',
+  'How login sessions start and end.',
+  '',
+  '## Current behavior',
+  'A login starts a session.',
+  '',
+  '## Policies',
+  '### Session lifetime',
+  'A session expires after 30 days without activity.',
+  '',
+  '## Evidence',
+  '- `src/auth/session.ts` — session creation',
+  '',
+  '## Open questions',
+  '- None',
+  '',
+  '## Related',
+  '- [Auth](overview.md)',
+  '',
+].join('\n');
+
+function englishFixture(patch: Record<string, string> = {}): Record<string, string> {
+  const files: Record<string, string> = {
+    'crumbs.json': `${JSON.stringify({ ...DEFAULT_CONFIG, lang: 'en' }, null, 2)}\n`,
+    'src/auth/session.ts': 'export const session = true;\n',
+    'docs/specs/index.md': [
+      '# Spec index',
+      '',
+      '## Domains',
+      '- [Auth](auth/overview.md) — login session',
+      '',
+      '## Records',
+      '- [Log](log.md) — change log',
+      '',
+    ].join('\n'),
+    'docs/specs/log.md': ['# Spec log', '', '## [2026-10-31] change | initial setup', 'Initial entry.', ''].join('\n'),
+    'docs/specs/auth/overview.md': [
+      '# Auth',
+      '',
+      '## Purpose',
+      'Owns the auth area.',
+      '',
+      '## Documents',
+      '- [Login](login.md) — login session',
+      '',
+      '## Related',
+      '- [Spec index](../index.md)',
+      '',
+    ].join('\n'),
+    'docs/specs/auth/login.md': LOGIN_EN,
+  };
+  return { ...files, ...patch };
+}
+
+test('74. 영어 어휘: 깨끗한 영어 픽스처는 발견이 없고, 빠진 절·절 순서·흐름 누락은 영어 제목과 영어 메시지로 나온다', () => {
+  assert.deepEqual(checkRepo(makeRepo(englishFixture())).findings, []);
+
+  const noEvidence = LOGIN_EN.replace('## Evidence\n- `src/auth/session.ts` — session creation\n\n', '');
+  const missing = checkRepo(makeRepo(englishFixture({ [LOGIN]: noEvidence })));
+  assert.deepEqual(
+    missing.findings.map((finding) => finding.message),
+    ['"## Evidence" section is missing'],
+  );
+
+  const misordered = LOGIN_EN.replace('## Current behavior\nA login starts a session.\n\n', '').replace(
+    '## Evidence',
+    '## Current behavior\nA login starts a session.\n\n## Evidence',
+  );
+  const order = checkRepo(makeRepo(englishFixture({ [LOGIN]: misordered })));
+  assert.deepEqual(
+    order.findings.map((finding) => finding.message),
+    ['section order differs from the template: "## Current behavior" must come before "## Policies"'],
+  );
+
+  const sixSteps = LOGIN_EN.replace(
+    'A login starts a session.\n',
+    ['- one', '- two', '- three', '- four', '- five', '- six', ''].join('\n'),
+  );
+  const flow = checkRepo(makeRepo(englishFixture({ [LOGIN]: sixSteps })));
+  assert.deepEqual(
+    flow.findings.map((finding) => finding.message),
+    ['current behavior has 6 steps but no flow diagram or table'],
+  );
+  assert.equal(flow.findings[0].severity, 'warning');
+});
+
+test('75. 영어 어휘: 링크 대상과 역링크 오류가 영어 메시지로 나온다', () => {
+  const broken = LOGIN_EN.replace('- [Auth](overview.md)', '- [Auth](overview.md)\n- [Gone](missing.md)');
+  const result = checkRepo(makeRepo(englishFixture({ [LOGIN]: broken })));
+  assert.deepEqual(
+    result.findings.map((finding) => finding.message),
+    ['link target not found: missing.md'],
+  );
+
+  const oneWay = LOGIN_EN.replace('- [Auth](overview.md)', '- [Auth](overview.md)\n- [Logout](logout.md)');
+  const logout = '# Logout\n\n## Purpose\nEnds the session.\n\n## Current behavior\nA logout ends the session.\n\n## Policies\n\n## Evidence\n- `src/auth/session.ts` — session end\n\n## Open questions\n- None\n\n## Related\n- [Auth](overview.md)\n';
+  const linked = checkRepo(
+    makeRepo(englishFixture({ [LOGIN]: oneWay, 'docs/specs/auth/logout.md': logout })),
+  );
+  assert.ok(
+    linked.findings.some((finding) => finding.message === 'linked from docs/specs/auth/login.md but no link back'),
+    JSON.stringify(linked.findings.map((finding) => finding.message)),
+  );
+});
+
+test('76. 영어 어휘: [needs confirmation]만 쓴 문서는 open-question 경고 하나를 내고, 한국어 마커도 여전히 인식한다', () => {
+  const asked = LOGIN_EN.replace(
+    'A session expires after 30 days without activity.',
+    'A session expires after 30 days without activity.\n[needs confirmation] Is the 30-day limit intended?',
+  );
+  const open = rulesNamed(checkRepo(makeRepo(englishFixture({ [LOGIN]: asked }))).findings, 'open-question');
+  assert.deepEqual(
+    open.map((finding) => finding.message),
+    ['1 open question marker(s)'],
+  );
+
+  const korean = LOGIN_EN.replace('A login starts a session.', 'A login starts a session.\n[확인 필요] 확인할 것');
+  const both = rulesNamed(checkRepo(makeRepo(englishFixture({ [LOGIN]: korean }))).findings, 'open-question');
+  assert.equal(both.length, 1);
+  assert.equal(both[0].message, '1 open question marker(s)');
+});
+
