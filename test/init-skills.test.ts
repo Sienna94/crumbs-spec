@@ -1,0 +1,347 @@
+import assert from 'node:assert/strict';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { after, test } from 'node:test';
+import type { TemplatePaths } from '../src/templates/ko.js';
+import { SKILL_NAMES } from '../src/skills.js';
+import { skillsKo } from '../src/templates/skills-ko.js';
+import { baseGraph, cleanup, makeRepo, readRepoFile, runCli, skillPath, tempDir } from './helpers.js';
+
+after(cleanup);
+
+// init이 만드는 파일 일곱 개(기본 설정 기준)
+const SEVEN_FILES = [
+  'crumbs.json',
+  'docs/specs/index.md',
+  'docs/specs/log.md',
+  'docs/specs/templates/overview.md',
+  'docs/specs/templates/detail.md',
+  'docs/raw/README.md',
+  'AGENTS.md',
+];
+
+const START = '<!-- crumbs:start -->';
+const SKILL_AGENTS = ['claude', 'codex'] as const;
+
+// 기본 설정의 경로(테스트 55가 템플릿을 직접 부를 때 쓴다).
+const DEFAULT_PATHS: TemplatePaths = {
+  specDir: 'docs/specs',
+  index: 'index.md',
+  overview: 'overview.md',
+  log: 'log.md',
+  rawDir: 'docs/raw',
+};
+
+// 저장소 안의 모든 파일을 상대 경로와 바이트로 모은다(일곱 파일과 스킬 여덟 개).
+function snapshot(root: string): Map<string, Buffer> {
+  const files = [...SEVEN_FILES];
+  for (const agent of SKILL_AGENTS) {
+    for (const name of SKILL_NAMES) files.push(skillPath(agent, name));
+  }
+  return new Map(files.filter((rel) => existsSync(join(root, rel))).map((rel) => [rel, readFileSync(join(root, rel))]));
+}
+
+test('48. init --skills claude: 일곱 파일과 Claude 스킬 4개를 만들고, 스킬 줄은 다섯 파일 줄 뒤와 AGENTS 줄 앞에 나오며, .agents/는 없다', () => {
+  const root = tempDir();
+  const result = runCli(['init', '--skills', 'claude'], root);
+  assert.equal(result.code, 0);
+  for (const rel of SEVEN_FILES) assert.ok(existsSync(join(root, rel)), `있어야 함: ${rel}`);
+  for (const name of SKILL_NAMES) assert.ok(existsSync(join(root, skillPath('claude', name))), `스킬: ${name}`);
+  assert.ok(!existsSync(join(root, '.agents')));
+
+  const lines = result.stdout.split('\n');
+  const skillLines = SKILL_NAMES.map((name) => `생성: .claude/skills/${name}/SKILL.md`);
+  for (const line of skillLines) assert.ok(lines.includes(line), line);
+  const lastFileLine = lines.indexOf('생성: docs/raw/README.md');
+  assert.ok(lines.indexOf(skillLines[0]) > lastFileLine, '스킬 줄은 다섯 파일 줄 뒤');
+  assert.ok(lines.indexOf(skillLines[skillLines.length - 1]) < lines.indexOf('갱신: AGENTS.md'), '스킬 줄은 AGENTS 줄 앞');
+
+  const check = runCli(['check'], root);
+  assert.equal(check.code, 0);
+  assert.ok(check.stdout.includes('문서 2개'));
+});
+
+test('49. --skills codex와 all: codex는 .agents/skills/ 아래 4개만 만들고, all은 두 루트에 8개를 만들며 같은 이름끼리 바이트가 같다', () => {
+  const codex = tempDir();
+  assert.equal(runCli(['init', '--skills', 'codex'], codex).code, 0);
+  for (const name of SKILL_NAMES) assert.ok(existsSync(join(codex, skillPath('codex', name))), name);
+  assert.ok(!existsSync(join(codex, '.claude')));
+
+  const all = tempDir();
+  assert.equal(runCli(['init', '--skills', 'all'], all).code, 0);
+  for (const name of SKILL_NAMES) {
+    assert.ok(existsSync(join(all, skillPath('claude', name))), name);
+    assert.ok(existsSync(join(all, skillPath('codex', name))), name);
+    assert.equal(readRepoFile(all, skillPath('claude', name)), readRepoFile(all, skillPath('codex', name)), name);
+  }
+});
+
+test('50. --skills 없음: 스킬을 만들지 않고 stdout은 1단계 출력과 같다', () => {
+  const root = tempDir();
+  const result = runCli(['init'], root);
+  assert.equal(result.code, 0);
+  assert.ok(!existsSync(join(root, '.claude')));
+  assert.ok(!existsSync(join(root, '.agents')));
+  assert.equal(
+    result.stdout,
+    [
+      '생성: crumbs.json',
+      '생성: docs/specs/index.md',
+      '생성: docs/specs/log.md',
+      '생성: docs/specs/templates/overview.md',
+      '생성: docs/specs/templates/detail.md',
+      '생성: docs/raw/README.md',
+      '갱신: AGENTS.md',
+      '다음: crumbs check',
+    ].join('\n') + '\n',
+  );
+});
+
+test('51. 이미 초기화된 저장소: init 뒤 --skills all은 스킬 8개만 더하고, 다시 실행하면 15개 파일이 바이트 단위로 그대로이며, 고친 SKILL.md는 보존된다', () => {
+  const root = tempDir();
+  assert.equal(runCli(['init'], root).code, 0);
+
+  const second = runCli(['init', '--skills', 'all'], root);
+  assert.equal(second.code, 0);
+  for (const rel of SEVEN_FILES.filter((rel) => rel !== 'AGENTS.md')) {
+    assert.ok(second.stdout.includes(`이미 있음, 건너뜀: ${rel}`), `건너뜀 출력: ${rel}`);
+  }
+  for (const agent of SKILL_AGENTS) {
+    for (const name of SKILL_NAMES) {
+      assert.ok(second.stdout.includes(`생성: ${skillPath(agent, name)}`), `생성 출력: ${skillPath(agent, name)}`);
+    }
+  }
+  assert.equal(readRepoFile(root, 'AGENTS.md').split(START).length - 1, 1);
+
+  const before = snapshot(root);
+  assert.equal(before.size, 15);
+  const third = runCli(['init', '--skills', 'all'], root);
+  assert.equal(third.code, 0);
+  for (const agent of SKILL_AGENTS) {
+    for (const name of SKILL_NAMES) {
+      assert.ok(third.stdout.includes(`이미 있음, 건너뜀: ${skillPath(agent, name)}`), skillPath(agent, name));
+    }
+  }
+  for (const [rel, bytes] of before) assert.ok(bytes.equals(readFileSync(join(root, rel))), `바이트가 같아야 함: ${rel}`);
+
+  writeFileSync(join(root, skillPath('claude', 'crumbs-writer')), '# 내 스킬\n');
+  const edited = runCli(['init', '--skills', 'claude'], root);
+  assert.equal(edited.code, 0);
+  assert.equal(readRepoFile(root, skillPath('claude', 'crumbs-writer')), '# 내 스킬\n');
+  assert.ok(edited.stdout.includes(`이미 있음, 건너뜀: ${skillPath('claude', 'crumbs-writer')}`));
+});
+
+test('52. 설정 경로: 설정의 specDir·log·rawDir·overview가 네 스킬 본문에 반영되고 기본 경로 문자열은 남지 않으며, --spec-dir만 줘도 specs를 쓴다', () => {
+  const root = tempDir();
+  writeFileSync(
+    join(root, 'crumbs.json'),
+    `${JSON.stringify({ version: 1, specDir: 'specs', log: '기록.md', rawDir: 'sources', overview: '개요.md' }, null, 2)}\n`,
+  );
+  assert.equal(runCli(['init', '--skills', 'claude'], root).code, 0);
+  const text = (name: string): string => readRepoFile(root, skillPath('claude', name));
+
+  for (const name of SKILL_NAMES) {
+    const body = text(name);
+    assert.ok(body.includes('specs/index.md'), name);
+    assert.ok(body.includes('개요.md'), name);
+    assert.ok(!body.includes('docs/specs/'), name);
+    assert.ok(!body.includes('docs/raw/'), name);
+    // overview.md는 고정된 템플릿 파일 이름(specs/templates/overview.md)에만 남는다.
+    assert.ok(!body.replace(/specs\/templates\/overview\.md/g, '').includes('overview.md'), name);
+  }
+
+  // 로그 파일 이름은 writer 본문에만 들어간다. finder와 ingest는 log add 명령 줄만 가진다(6.3.3·6.3.5 원문).
+  assert.ok(text('crumbs-writer').includes('specs/기록.md'));
+  assert.ok(text('crumbs-finder').includes('npx crumbs-spec log add'));
+  assert.ok(text('crumbs-ingest').includes('npx crumbs-spec log add'));
+  assert.ok(!text('crumbs-interview').includes('log add'));
+  assert.ok(!text('crumbs-interview').includes('기록.md'));
+
+  for (const name of ['crumbs-writer', 'crumbs-interview', 'crumbs-ingest']) {
+    assert.ok(text(name).includes('sources/'), name);
+  }
+
+  const other = tempDir();
+  assert.equal(runCli(['init', '--spec-dir', 'specs', '--skills', 'claude'], other).code, 0);
+  assert.ok(readRepoFile(other, skillPath('claude', 'crumbs-writer')).includes('specs/index.md'));
+});
+
+test('53. 옵션 오류: --skills 값이 잘못되면 종료 2와 메시지를 내고 아무 파일도 만들지 않으며, 다른 명령에서는 알 수 없는 옵션이다', () => {
+  for (const args of [
+    ['init', '--skills', 'gemini'],
+    ['init', '--skills', ''],
+    ['init', '--skills'],
+  ]) {
+    const root = tempDir();
+    const result = runCli(args, root);
+    assert.equal(result.code, 2, args.join(' '));
+    assert.ok(result.stderr.includes('crumbs: 옵션 "--skills"의 값이 잘못됨'), args.join(' '));
+    assert.ok(result.stderr.includes('사용법: crumbs'), args.join(' '));
+    assert.ok(!existsSync(join(root, 'crumbs.json')), args.join(' '));
+    assert.ok(!existsSync(join(root, '.claude')), args.join(' '));
+  }
+
+  const root = makeRepo(baseGraph());
+  const check = runCli(['check', '--skills', 'all'], root);
+  assert.equal(check.code, 2);
+  assert.ok(check.stderr.includes('crumbs: 알 수 없는 옵션 "--skills"'));
+
+  const log = runCli(['log', 'add', '--kind', 'change', 'x', '--skills', 'all'], root);
+  assert.equal(log.code, 2);
+  assert.ok(log.stderr.includes('crumbs: 알 수 없는 옵션 "--skills"'));
+});
+
+test('54. 도움말과 사용법: --help에 log add, --skills, --kind, log add 옵션, 예와 기존 절이 있고, 알 수 없는 명령의 사용법 줄이 바뀐다', () => {
+  const root = tempDir();
+  const help = runCli(['--help'], root);
+  assert.equal(help.code, 0);
+  for (const text of [
+    'log add',
+    '--skills <claude|codex|all>',
+    '--kind <ingest|query|lint|drift|change|decision>',
+    'log add 옵션',
+    '예',
+    '명령',
+    'check 옵션',
+  ]) {
+    assert.ok(help.stdout.includes(text), text);
+  }
+
+  const unknown = runCli(['frobnicate'], root);
+  assert.equal(unknown.code, 2);
+  assert.ok(unknown.stderr.includes('사용법: crumbs <init|check|log add> [옵션]  (자세히: crumbs --help)'));
+});
+
+test('55. 템플릿 단위: 네 스킬 모두 frontmatter, 이름, 설명 길이, 필수 절, 미치환 흔적, 줄 수 규칙을 지키고 개별 문구도 있다', () => {
+  for (const name of SKILL_NAMES) {
+    const text = skillsKo[name](DEFAULT_PATHS);
+    const lines = text.replace(/\n$/, '').split('\n');
+    assert.equal(lines[0], '---', name);
+    assert.equal(lines[1], `name: ${name}`, name);
+    assert.ok(lines[2].startsWith('description: '), name);
+    assert.equal(lines[3], '---', name);
+
+    const description = lines[2].slice('description: '.length);
+    assert.ok(description.length >= 1 && description.length <= 1024, `설명 길이: ${description.length}`);
+    assert.match(name, /^[a-z0-9]+(-[a-z0-9]+)*$/, name);
+    assert.ok(name.length <= 64, name);
+
+    assert.ok(text.includes('## 마치기 전에'), name);
+    assert.ok(text.includes('## 하지 않는 것'), name);
+    assert.ok(!text.includes('${') && !text.includes('<스킬 루트>'), name);
+    assert.ok(lines.length <= 150, `줄 수: ${lines.length}`);
+    assert.ok(text.includes('docs/specs/index.md'), name);
+    assert.ok(text.includes('npx crumbs-spec check'), name);
+  }
+
+  const writer = skillsKo['crumbs-writer'](DEFAULT_PATHS);
+  for (const text of ['## 변경 반영', '## 기존 코드 문서화 (처음 쓰기)', '--kind change', '[확인 필요]']) {
+    assert.ok(writer.includes(text), `writer: ${text}`);
+  }
+
+  const finder = skillsKo['crumbs-finder'](DEFAULT_PATHS);
+  for (const text of ['## 환류', '--kind query']) assert.ok(finder.includes(text), `finder: ${text}`);
+
+  const interview = skillsKo['crumbs-interview'](DEFAULT_PATHS);
+  for (const text of ['## 확인 필요 사항', '확인됨', '미확인']) assert.ok(interview.includes(text), `interview: ${text}`);
+  assert.ok(!interview.includes('--kind'), 'interview에는 --kind가 없다');
+
+  const ingest = skillsKo['crumbs-ingest'](DEFAULT_PATHS);
+  assert.ok(ingest.includes('--kind ingest'), 'ingest: --kind ingest');
+  assert.ok(ingest.includes('docs/raw/'), 'ingest: docs/raw/');
+});
+
+test('56. 흐름 지침: crumbs-writer 본문에 "흐름" 절의 도식·표 지침과 missing-flow 경고 지침이 있다', () => {
+  const writer = skillsKo['crumbs-writer'](DEFAULT_PATHS);
+  for (const text of [
+    '"흐름"의 도식·표가 그 동작을 담고 있으면 같이 고친다.',
+    '   - "흐름": "현재 동작"이 두 단계 이상이면',
+    '개요의 "흐름"에는 상세 문서 하나를 노드 하나로',
+    '경고 `missing-flow`는',
+  ]) {
+    assert.ok(writer.includes(text), text);
+  }
+});
+
+test('57. 책임 단위: crumbs-writer 본문은 상세 문서를 사용자 흐름 하나로 보고 12개 문턱을 말하며, 옛 7개 문턱은 남기지 않는다', () => {
+  const writer = skillsKo['crumbs-writer'](DEFAULT_PATHS);
+  assert.ok(writer.includes('사용자 흐름 하나다'), '사용자 흐름 하나다');
+  assert.ok(writer.includes('12개를 넘거나'), '12개를 넘거나');
+  assert.ok(!writer.includes('7개를 넘으면'), '7개를 넘으면은 없어야 함');
+});
+
+test('58. 문서 기준 보완: crumbs-writer 본문에 api/ 소유, 용어 절, 문장 규칙, 응답 코드 첫 열, 질문 정책 형식, section-order 안내가 있다', () => {
+  const writer = skillsKo['crumbs-writer'](DEFAULT_PATHS);
+  for (const text of [
+    '`docs/specs/api/<엔드포인트>.md`가 소유한다',
+    '개요의 "용어"에',
+    '문장 규칙: 불릿 하나에 규칙 하나',
+    '표의 첫 열은 응답 코드(또는 오류 종류)',
+    '이 서술은 관찰이지 확정이 아니므로 마커 줄 없이 두지 않는다',
+    '경고 `section-order`는',
+  ]) {
+    assert.ok(writer.includes(text), text);
+  }
+  const finder = skillsKo['crumbs-finder'](DEFAULT_PATHS);
+  assert.ok(finder.includes('"용어" 절의 별칭'), 'finder: 용어 별칭');
+  const interview = skillsKo['crumbs-interview'](DEFAULT_PATHS);
+  assert.ok(interview.includes('- [확인 필요] 단일 기기 로그인 — '), 'interview: 정책 이름 먼저');
+});
+
+test('59. 레퍼런스 매핑: crumbs-writer 본문에 문체·주어와 시제·소제목·알림 금지 문장이, crumbs-finder 본문에 답 먼저·표준 용어 문장이 있다', () => {
+  const writer = skillsKo['crumbs-writer'](DEFAULT_PATHS);
+  for (const text of [
+    '     - 문체: 본문은 `-한다`체 평서문이고',
+    '     - 주어와 시제: 행위 주체(사용자·앱·서버·SDK)를 주어로 세운다.',
+    '     - 수량과 군더더기: 수량은 숫자와 이상·이하·초과·미만으로 적고',
+    '     - 소제목: `###`는 사용자 행동이나 결과를 담은 명사구이고',
+    '표의 빈 셀은 "없음"으로 채우고 셀을 병합하지 않는다.',
+    '본문 첫 문장이 규칙이고 예외는 그 뒤에 온다.',
+    '- `> [!NOTE]` 같은 알림 블록',
+  ]) {
+    assert.ok(writer.includes(text), text);
+  }
+  const finder = skillsKo['crumbs-finder'](DEFAULT_PATHS);
+  for (const text of ['- 답을 먼저, 출처를 뒤에 쓴다.', '- 문서의 표준 용어로 답하고', '대화 위치에 기대지 않고']) {
+    assert.ok(finder.includes(text), text);
+  }
+});
+
+test('60. 횡단 개념: crumbs-writer 본문에 concepts/ 승격 기준과 "다시 정의하지 않으며" 문장이, crumbs-finder 본문에 concepts/ 탐색 문장이 있다', () => {
+  const writer = skillsKo['crumbs-writer'](DEFAULT_PATHS);
+  for (const text of ['docs/specs/concepts/<개념>.md`가 소유한다', '다시 정의하지 않으며']) {
+    assert.ok(writer.includes(text), `writer: ${text}`);
+  }
+  const finder = skillsKo['crumbs-finder'](DEFAULT_PATHS);
+  assert.ok(finder.includes('docs/specs/concepts/overview.md`의 "용어"와 "문서 목록"을 먼저 본다.'), 'finder: concepts/ 탐색');
+});
+
+test('63. decision 규약: writer 본문에 결과·이유·문서 규약과 decision 항목·결정 링크가 있고, finder·interview·ingest에 결정과 환류 문장이 있으며, AGENTS 블록에 decision이 있다', () => {
+  const writer = skillsKo['crumbs-writer'](DEFAULT_PATHS);
+  for (const text of [
+    '`결과:`·`이유:`·`문서:` 순서로 쓰며',
+    '--kind decision "<정책 이름>: <답 한 문장>"',
+    '(결정: [YYYY-MM-DD](../log.md#<항목 앵커>))',
+    '2026-11-02-decision-세션-유효-기간-30일',
+    '도메인당 한 항목으로 묶어 `결과:`에 개수를 적는다',
+  ]) {
+    assert.ok(writer.includes(text), `writer: ${text}`);
+  }
+  assert.ok(writer.includes('변경 이력을 넣지 않는다'), 'writer: 변경 이력 금지 문장');
+  assert.ok(writer.includes('확정 정책 끝의 결정 링크'), 'writer: 하지 않는 것의 예외');
+
+  const finder = skillsKo['crumbs-finder'](DEFAULT_PATHS);
+  assert.ok(finder.includes('`결과:`(답 한 문장)와 `문서:`(답을 준 문서 링크)'), 'finder: query 본문');
+
+  const decisionSentence = '질문 정책이 확정되면 `decision` 항목을 남기고, 확정한 정책 본문 끝에 결정 링크를 둔다.';
+  assert.ok(skillsKo['crumbs-interview'](DEFAULT_PATHS).includes(decisionSentence), 'interview: 결정 문장');
+  assert.ok(skillsKo['crumbs-ingest'](DEFAULT_PATHS).includes(decisionSentence), 'ingest: 결정 문장');
+  const ingestLog = skillsKo['crumbs-ingest'](DEFAULT_PATHS);
+  assert.ok(ingestLog.includes('--kind ingest "<사용자 결과 한 문장>"'), 'ingest: 결과 한 문장 제목');
+  assert.ok(!ingestLog.includes('수정: <문서 경로들>'), 'ingest: 옛 수정 형식 없음');
+
+  const root = tempDir();
+  assert.equal(runCli(['init'], root).code, 0);
+  assert.ok(readRepoFile(root, 'AGENTS.md').includes('(kind: ingest, query, lint, drift, change, decision).'), 'AGENTS 블록');
+  assert.ok(readRepoFile(root, 'docs/specs/log.md').includes('kind ∈ ingest | query | lint | drift | change | decision.'), '로그 머리말');
+});

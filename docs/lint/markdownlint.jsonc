@@ -1,0 +1,27 @@
+{
+  // crumbs 스펙 문서용 markdownlint 설정 샘플. 스펙 저장소 루트에 .markdownlint.jsonc로 복사해 쓴다.
+  // crumbs check가 보는 구조(필수 절·순서·링크·앵커·정책 중복)는 여기서 다시 검사하지 않는다.
+  "default": true,
+  // 제목은 ATX(#)만, 글머리 기호는 -, 번호 목록은 1. 반복, 코드 블록은 펜스.
+  "MD003": { "style": "atx" },
+  "MD004": { "style": "dash" },
+  "MD029": { "style": "one_or_ordered" },
+  "MD046": { "style": "fenced" },
+  // 불릿 한 줄에 문장 여러 개를 두는 writability 프로필이므로 줄 길이는 검사하지 않는다.
+  "MD013": false,
+  // crumbs 템플릿은 절 제목 바로 아래에 본문과 목록을 둔다(CommonMark 해석 차이 없음). 빈 줄 규칙은 끈다.
+  "MD022": false,
+  "MD032": false,
+  // 같은 레벨 형제끼리만 중복 제목을 막는다. 정책 이름의 저장소 전체 중복은 crumbs check(duplicate-policy)가 본다.
+  "MD024": { "siblings_only": true },
+  // 제목 끝 구두점 금지에 ?·？를 더해 질문형 제목을 막는다(질문은 [확인 필요] 줄에 쓴다).
+  "MD026": { "punctuation": ".,;:!。，；：！?？" },
+  "MD033": { "allowed_elements": [] },
+  // 필수 절과 순서는 crumbs check(missing-section·section-order)가 담당한다.
+  "MD043": false,
+  // 고유명사 표기는 저장소가 채운다. 예: ["iOS", "Android", "SDK"]
+  "MD044": { "names": [], "code_blocks": false },
+  // 링크 텍스트는 목적지(문서 제목·정책 이름)여야 한다. markdownlint 0.42는 링크 텍스트를 \W 기준으로 정규화해
+  // 한국어가 빈 문자열이 되므로 한국어 금지어(여기·이곳·링크·클릭)를 여기 넣으면 모든 한국어 링크가 오탐된다. 한국어는 README의 스크립트로 검출한다.
+  "MD059": { "prohibited_texts": ["click here", "here", "link", "more"] }
+}

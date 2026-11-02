@@ -1,0 +1,26 @@
+{
+  "name": "crumbs-spec",
+  "version": "0.1.0",
+  "description": "Living, responsibility-owned spec docs for AI coding agents, connected as a verified link graph.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "crumbs": "dist/src/cli.js"
+  },
+  "files": [
+    "dist/src"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "postbuild": "node -e \"require('fs').chmodSync('dist/src/cli.js', 0o755)\"",
+    "test": "npm run build && node --test dist/test/",
+    "prepublishOnly": "npm test"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "@types/node": "^20.0.0"
+  }
+}
