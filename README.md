@@ -44,34 +44,35 @@ From LLM Wiki we kept the raw/wiki/schema split, index-first navigation, the app
 - **Decisions in one place.** When a question gets its answer, a `decision` entry goes into the log and the document points at it with a single dated link.
 - **Two languages.** `lang` in `crumbs.json` selects the language of the templates, skills, messages and AGENTS block for the whole repository. It defaults to English (`en`); `ko` gives Korean. This README is the English guide.
 
-## What happened when we used it (one run, self-reported)
+## Does it work on code it has never seen? (RealWorld experiment)
 
-Read this as an anecdote, not a benchmark. It was a single run with 18 questions, graded by the author, the questions were drawn from the existing spec system, the two corpora differ in size (38 documents against about 127), and the raw data comes from a private repository and cannot be published. The roadmap's example app and benchmark runner exist to replace it.
+We ran the writer skill on two open-source backends of the [RealWorld](https://github.com/realworld-apps/realworld) "Conduit" API and graded the documents against the project's official API test suite. The generated documents, prompts, ground truth and every grading row are published in [crumbs-spec-conduit](https://github.com/Sienna94/crumbs-spec-conduit).
 
-We rewrote three areas of a real app repository (about 40,000 lines of code) with the crumbs-writer skill without showing it any existing spec document. Then we asked the same 18 questions of the existing spec system and the crumbs system and let an agent answer from documents only.
+- **Setup.** Two pinned implementations of the same API: [Nitro + Prisma](https://github.com/realworld-apps/nitro-prisma-zod-realworld-example-app) (TypeScript) and [Django Ninja](https://github.com/c4ffein/realworld-django-ninja) (Python). One Opus 5.5 agent per implementation wrote the documents from code and tests only. The official spec repository was not in the experiment repository while they wrote; it was added in a later commit.
+- **Ground truth.** Each request in the official Hurl suite, at the version both implementations pin, is one row: 130 rows after dropping setup and cleanup requests.
+- **Grading.** A different model (Sonnet 5.5) graded every row. `correct` means the documents state the status and every essential asserted value, `partial` that one is left out, `wrong` that the documents contradict it, `missing` that no document covers it. It also checked every policy against the code.
 
-**Cost of writing from zero** (one agent per domain, three in parallel)
-
-| Domain | Code | Documents | Policies (confirmed / open questions) | Agent tokens | Writing time |
-|---|---|---|---|---|---|
-| Payment | ~20k lines | 19 | 100 (5 / 95) | 570k | 1 h 7 min |
-| Viewer | ~23k lines | 40 | 194 (29 / 165) | 850k | 1 h 7 min |
-| Auth | ~10k lines | 35 | 195 (64 / 131) | 790k | 1 h 13 min |
-
-Writing time is the actual working time from the agent transcripts' timestamps, excluding idle gaps longer than ten minutes. With the three domains in parallel everything finished in about 1 h 15 min. In our own review of the output we found no invented policy, and the six places where the existing spec disagreed with the code were written as the code behaves; that review was done by the author, not independently. The documents were later regrouped by user flow into 38.
-
-**Navigation cost on the same 18 questions** (documents only; reading code was forbidden)
-
-crumbs-spec answered fewer questions correctly (15 against 17) and read fewer files and tokens.
-
-| | Existing spec system | crumbs-spec |
+| | Nitro + Prisma | Django Ninja |
 |---|---|---|
-| Correct answers | 17 / 18 (1 partial) | 15 / 18 (3 partial) |
-| Files read in total | 70 (avg 3.9, max 8) | 64 (avg 3.6, max 6) |
-| Fell back to grep | 3 | 1 |
-| Tokens in total | 2.32M | 1.89M (−18%) |
+| Code / tests in the repository | ~1,400 lines / 2 unit test files | ~2,300 lines / endpoint tests for each app |
+| Documents / policies | 28 / 51 | 26 / 91 |
+| Policies confirmed by tests / left as questions | 6 / 45 | 50 / 41 |
+| Suite rows correct | **125 / 130** | **116 / 130** |
+| Suite rows partial / wrong / missing | 5 / 0 / 0 | 14 / 0 / 0 |
+| Invented policies (code does not do it) | 0 | 0 |
+| Policies partly overstated | 1 | 6 |
+| Writer tokens / wall time | 165k / 2 h 40 min | 202k / 2 h 47 min |
 
-The existing system's partial answer came from failing to find the owning document; the three crumbs partials all reached the owning document in 3–5 files but the writer had dropped details such as screen numbers and channel branches. We added a skill rule for this ("do not drop values that carry a condition"); the benchmark has not been re-run. Note the bias: the questions were drawn from the existing specs, which favors the existing system.
+- **Nothing contradicted the suite and nothing was invented.** Every miss is a detail left out. Nitro's five partials are `null` inputs the documents never mention and the order of tags. Twelve of Django's fourteen come from one honest question: the app's error handler and its tests disagree on the 401 body, so the writer stated both and asked.
+- **Statements under a question were mostly right.** 12 Nitro rows and 32 Django rows were graded correct on a statement still marked `[needs confirmation]`. "This is what it does now" plus a question kept the documents useful without claiming more than the tests prove.
+- **Fewer tests, more questions.** Nitro has two unit test files, so 45 of its 51 policies stayed questions. The suite answers 29 of them, which is the list a maintainer would confirm first.
+- **The writers raised what no suite row tests.** As questions: Django's article list ignores the token and reads the session user, and its `createUser` command looks users up by a field a migration renamed. The Nitro documents also say plainly that the email format is not checked, which a newer version of the suite does test.
+
+Limits: one run per implementation and one writer model. The grader is also a model; the author checked that every cited anchor exists and spot-checked rows. RealWorld is well known, so the writer may have seen it in training even without the spec in the repository. The suite asserts only part of what the documents say: 20 of Nitro's and 41 of Django's policies were checked against the code alone. The Django grader ran the code with unpinned dependencies, so some of its "partly" verdicts may depend on library versions.
+
+### An earlier run on a private app (anecdote)
+
+Before this we rewrote three areas of a private app (about 40,000 lines) and asked the existing spec system and crumbs the same 18 questions, documents only. crumbs answered 15 against 17, read 64 files against 70 and used 18% fewer tokens. Its three partial answers were details the writer had dropped, which led to the skill rule "do not drop values that carry a condition". The author graded it, the questions came from the existing specs, and the data cannot be published, so read it as an anecdote. The navigation comparison has not been repeated on public code yet.
 
 ## Install and quick start
 
@@ -122,7 +123,7 @@ The order for a repository that already has code and documents. Start with one d
    The domain directory is docs/crumbs/billing/. Leave unconfirmed policies as questions and finish the whole thing.
    ```
 
-5. **Put `check` in CI.** Fail only on errors (broken links and anchors, unreachable documents, missing backlinks, missing code paths, duplicate policy names) and ignore warnings. Markdown under the spec root that is not a crumbs document yet goes into `exclude` in `crumbs.json`: entries are paths relative to the spec root, an entry ending in `/` excludes that directory, there are no glob patterns, and `check` tells you when a document has none of the required sections.
+5. **Put `check` in CI.** Fail only on errors (every rule marked error in the check rules table below) and ignore warnings. Markdown under the spec root that is not a crumbs document yet goes into `exclude` in `crumbs.json`: entries are paths relative to the spec root, an entry ending in `/` excludes that directory, there are no glob patterns, and `check` tells you when a document has none of the required sections.
 
 6. **Change the document in the same change as the code.** The AGENTS block tells the agent to "update the owning document in the same change, even when nobody asked", so every PR brings `check` and a log entry with it. The index fills in as domains are added one by one.
 
@@ -394,6 +395,6 @@ Exit code 1 means there are errors. Warnings (`open-question`, `missing-flow` an
 | 2 | Four skills, `log add`, flow section, responsibility-size rules, terms and concept pages, decision log | done |
 | 3 | `crumbs reverse <path>` — a command that drafts from code (the writer skill does this today) | planned |
 | 4 | `crumbs drift --base <ref>` — finds documents whose evidence changed in a diff | planned |
-| 5 | Example app and a navigation-cost benchmark runner | planned |
+| 5 | Public example ([crumbs-spec-conduit](https://github.com/Sienna94/crumbs-spec-conduit)) and a navigation-cost benchmark runner | example done, runner planned |
 
 The `lang` setting (`en` by default, `ko` for Korean) selects the language of the templates, skills and messages, so one repository uses one language.
