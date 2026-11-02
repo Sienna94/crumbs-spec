@@ -55,7 +55,7 @@ A branch with two or more comparison axes, such as channel or state, goes in a t
 then write [needs confirmation] and the question on the next line>
 
 ## Evidence
-- \`<path/to/file.ext>\` — <what it implements> (the path must contain a "/"; write a root file as ./file)
+- \`<path/to/file.ext>\` — <what it implements> (code paths are relative to codeRoot in crumbs.json and source material is written as ${p.rawDir}/<file>; the path must contain a "/"; write a root file as ./file)
 
 ## Open questions
 - [needs confirmation] [<policy name>](#<policy-anchor>) — <question that would change behavior or scope>

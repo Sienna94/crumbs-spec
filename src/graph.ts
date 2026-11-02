@@ -120,6 +120,12 @@ function dirsUpTo(start: string, specAbs: string): string[] {
   return out;
 }
 
+// 원본 자료(rawDir 아래)는 코드가 아니므로 codeRoot가 아니라 저장소 루트 기준으로 해석한다.
+function isUnderRawDir(path: string, rawDir: string): boolean {
+  const normalized = path.replace(/^\.\//, '');
+  return normalized === rawDir || normalized.startsWith(`${rawDir}/`);
+}
+
 export function buildGraph(root: string, config: Config): Graph {
   const specAbs = resolve(root, config.specDir);
   const indexAbs = join(specAbs, config.index);
@@ -168,7 +174,7 @@ export function buildGraph(root: string, config: Config): Graph {
     const evidencePaths: EvidencePath[] = evidenceCandidates(scan, sections).map((candidate) => ({
       line: candidate.line,
       raw: candidate.raw,
-      resolved: resolve(codeRootAbs, candidate.path),
+      resolved: resolve(isUnderRawDir(candidate.path, config.rawDir) ? root : codeRootAbs, candidate.path),
     }));
 
     const policies = sections

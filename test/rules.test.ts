@@ -252,6 +252,23 @@ test('18. missing-code-path: 없는 근거 경로는 줄 번호와 함께 오류
   ]);
 });
 
+test('18a. missing-code-path: rawDir 아래 근거는 codeRoot와 무관하게 저장소 루트 기준으로 해석한다', () => {
+  const loginWithRaw = LOGIN_TEXT.replace(
+    '- `src/auth/session.ts` — 세션 생성\n',
+    '- `src/auth/session.ts` — 세션 생성\n- `docs/raw/contract.pdf` — 계약\n- `./docs/raw/contract.pdf` — 계약(./ 표기)\n- `docs/raw/missing.pdf` — 없는 자료\n',
+  );
+  const files = fixture({
+    [LOGIN]: loginWithRaw,
+    'src/auth/session.ts': null,
+    'app/src/auth/session.ts': 'export {};\n',
+    'docs/raw/contract.pdf': 'pdf\n',
+    'crumbs.json': `${JSON.stringify({ ...DEFAULT_CONFIG, codeRoot: 'app' }, null, 2)}\n`,
+  });
+  assert.deepEqual(rulesNamed(check(files).findings, 'missing-code-path').map((f) => f.message), [
+    '코드 경로가 없음: docs/raw/missing.pdf',
+  ]);
+});
+
 test('19. duplicate-policy: 두 상세 문서에 같은 정책이 있으면 문서마다 오류, 한 파일 안의 중복과 로그는 제외, 대소문자·공백만 다르면 여전히 중복', () => {
   const pr = detailDoc('비밀번호 재설정', [], ['세션 유효 기간']);
   const shared = fixture({

@@ -5,6 +5,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Evidence paths under `rawDir` (for example `docs/raw/contract.pdf`) are resolved against the repository root even when `codeRoot` is set, so source material cited the way the ingest skill says no longer fails `missing-code-path`.
+
+### Changed
+
+- The AGENTS block, the skills and the detail template say that evidence code paths are relative to `codeRoot` and that source material is cited as `<rawDir>/<file>`.
+
 ### Documentation
 
 - README: results of an experiment on two public RealWorld (Conduit) backends, graded against the official API test suite ([crumbs-spec-conduit](https://github.com/Sienna94/crumbs-spec-conduit)). The earlier private benchmark is kept as a short anecdote.

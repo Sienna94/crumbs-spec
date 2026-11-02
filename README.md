@@ -177,47 +177,42 @@ The sections of a detail document are fixed. Headings follow `lang` (English by 
 | Open questions | `- [needs confirmation] [policy name](#anchor) — question` |
 | Related | Link to the overview and neighboring documents; backlinks must be mutual |
 
-Example (`docs/specs/shopping/cart.md`):
+Example: a detail document the writer produced from the Nitro code in [the RealWorld experiment](#does-it-work-on-code-it-has-never-seen-realworld-experiment), unedited ([source](https://github.com/Sienna94/crumbs-spec-conduit/blob/main/nitro/docs/specs/api/articles/tag-list.md)). Usage example 3 below answers its question and adds a flow diagram.
 
 ````markdown
-# Cart
-<!-- Read ../index.md first. After changing this document, add an entry to ../log.md -->
+# Tag list
+<!-- Read ../../index.md first. After changing this document, add an entry to ../../log.md -->
 
 ## Purpose
-Owns the flow from adding an item to changing its quantity and emptying the cart. Coupon application is owned by [Coupon discount](coupon-discount.md).
+This document owns GET /api/tags, which returns the most used tag names. How tags are attached to articles is owned by [Article creation](article-create.md#article-tag-name-handling). The endpoint allows anonymous viewers as described in [Authentication token](../authentication-token.md), and the list is the same for anonymous and signed-in viewers.
 
 ## Current behavior
-- When the user adds the same item again, the app adds the quantities.
-- When the quantity would exceed 99, the app shows "You can add up to 99 of this item." and does not add it.
+- The server considers only tags that at least one article uses.
+- The server sorts those tags by the number of articles that use them, most used first.
+- The server returns at most 10 tag names.
+- The server responds with status 200 and {"tags": ["<name>"…]}.
+- If no article uses a tag, the list is empty.
 
 ## Flow
-```mermaid
-flowchart TD
-    A["Add item"] --> B{"Already in cart?"}
-    B -->|yes| C["Add quantities"]
-    B -->|no| D["New line"]
-    C --> E{"More than 99?"}
-    E -->|yes| F["Show notice, do not add"]
-```
+None
 
 ## Policies
-### Quantity cap
-A cart line holds at most 99 of one item.
-
-### Minimum order amount
-Right now the checkout button is disabled when the total is under 10,000 KRW.
-[needs confirmation] Where does the 10,000 KRW threshold come from?
+### Popular tag list
+The tag list holds at most 10 names of tags used by at least one article, sorted by the number of articles that use each tag, most used first. The order of tags used by the same number of articles is not defined, and the list has no pagination. No test covers this rule.
+[needs confirmation] What is the basis of the 10-tag limit, and what should order tags with the same usage count?
 
 ## Evidence
-- `src/cart/cart.ts:12-48` — adding and quantity merge
-- `test/cart/cart.test.ts` — quantity cap
+- `server/routes/api/tags/index.get.ts` — selects tags used by at least one article, sorts them by usage and returns at most 10 names
+- `prisma/schema.prisma` — unique tag names and the relation between tags and articles
 
 ## Open questions
-- [needs confirmation] [Minimum order amount](#minimum-order-amount) — Where does the 10,000 KRW threshold come from?
+- [needs confirmation] [Popular tag list](#popular-tag-list) — What is the basis of the 10-tag limit, and what should order tags with the same usage count?
 
 ## Related
-- [Shopping overview](overview.md)
-- [Coupon discount](coupon-discount.md)
+- [Articles API overview](overview.md)
+- [Article creation](article-create.md)
+- [Article update](article-update.md)
+- [Article deletion](article-delete.md)
 ````
 
 The overview's "Terms" section is a list of aliases linked to the owning policy (`- Subscription pass(flat-rate pass) — [Pass active check](pass.md#pass-active-check)`). A term that is only a definition stops there; only concepts that several flows branch on (channel, currency, member state) get an owning document under `concepts/`.
@@ -235,13 +230,15 @@ Common options are `--root <dir>` (repository root, default: current directory),
 `check` prints one line per finding as `file:line severity rule: message`, and a summary last.
 
 ```
-docs/specs/shopping/cart.md:34 error broken-anchor: anchor not found: coupon-discount.md#application-order
-docs/specs/shopping/cart.md:20 warning open-question: 1 open question(s)
-
-crumbs check: 4 documents, 1 error, 1 warning
+docs/specs/api/articles/tag-list.md:31 error broken-link: link target not found: ../log.md#2026-11-03-decision--popular-tag-list-most-used-first-stays-ties-are-undefined-10-tags-are-cut-after-sorting-and-every-viewer-gets-the-same-unpaginated-list
+docs/specs/api/articles/article-delete.md:44 warning open-question: 1 open question(s)
+…
+crumbs check: 28 documents, 1 error, 20 warnings
 ```
 
-**Supported Markdown.** Headings must be ATX (`#` to `######`); setext headings are not recognized. Inline links and reference links (`[text][label]`, and `[label][]` with a `[label]: path` definition) are checked; a shortcut reference such as `[label]` alone is not a link. Heading anchors follow github-slugger: each space becomes `-`, punctuation other than `-` and `_` is dropped, and nothing is collapsed, so `### Quantity & limits` becomes `#quantity--limits`. Symlinked files and directories under the spec root are followed. An evidence path must contain a `/`, so a repository-root file is written `./package.json`; line suffixes such as `:12`, `:12-48`, `:12:5` and `:12-48,60-70` are accepted. Entries in `exclude` are paths relative to the spec root, and an entry ending in `/` excludes that directory. Every finding carries a `line` (1 when there is no better position), so JSON output always includes it.
+This is the check from usage example 3 before the writer fixed its decision link; the other 19 warnings are left out.
+
+**Supported Markdown.** Headings must be ATX (`#` to `######`); setext headings are not recognized. Inline links and reference links (`[text][label]`, and `[label][]` with a `[label]: path` definition) are checked; a shortcut reference such as `[label]` alone is not a link. Heading anchors follow github-slugger: each space becomes `-`, punctuation other than `-` and `_` is dropped, and nothing is collapsed, so `### Quantity & limits` becomes `#quantity--limits`. Symlinked files and directories under the spec root are followed. Evidence paths are resolved against `codeRoot` (the repository root by default), except paths under `rawDir`, which are always resolved against the repository root. An evidence path must contain a `/`, so a repository-root file is written `./package.json`; line suffixes such as `:12`, `:12-48`, `:12:5` and `:12-48,60-70` are accepted. Entries in `exclude` are paths relative to the spec root, and an entry ending in `/` excludes that directory. Every finding carries a `line` (1 when there is no better position), so JSON output always includes it.
 
 ### Check rules
 
@@ -266,25 +263,30 @@ crumbs check: 4 documents, 1 error, 1 warning
 
 ## Log
 
-The log is appended in one place (`docs/specs/log.md`) in chronological order. The title is **one sentence about the user outcome**, not the task name, and the body has three lines.
+The log is appended in one place (`docs/specs/log.md`) in chronological order. The title is **one sentence about the user outcome**, not the task name, and the body has three lines. `log add` writes the entry and refuses titles or bodies that contain `<!--`.
 
 ```bash
-npx crumbs-spec log add --kind change "Cart quantity cap raised to 99" \
-  --body "Result: a cart line holds up to 99. Reason: request SHOP-42. Document: [Quantity cap](shopping/cart.md#quantity-cap)"
+npx crumbs-spec log add --kind change "<one sentence about the user outcome>" \
+  --body "Result: <what changed>. Reason: <why>. Document: [<policy>](<domain>/<document>.md#<anchor>)"
 ```
 
-`log add` refuses titles or bodies that contain `<!--`.
-
-When a `[needs confirmation]` question gets its answer, add a `decision` entry and put one decision link at the end of the confirmed policy. Instead of change-history tables inside documents, decisions accumulate in the log and documents only point at them. The slug drops the brackets, `|`, comma and colon, so the `|` leaves a double dash in the anchor.
+The entry written in usage example 5:
 
 ```markdown
-## [2026-11-02] decision | Minimum order amount: 10,000 KRW comes from the shipping fee policy
-Result: the checkout button is disabled below 10,000 KRW. Reason: 2026-11-02 planning review. Document: [Minimum order amount](shopping/cart.md#minimum-order-amount)
+## [2026-11-03] change | A malformed email on registration, login and account update is rejected with 422 and is invalid
+Result: a malformed email on registration, login and account update gets status 422 with {"errors": {"email": ["is invalid"]}}; 3 api documents updated and 1 open question remains about accepted address forms. Reason: code change in server/schemas/user.schema.ts, reported by the user. Document: [Email format](api/users/registration.md#email-format)
+```
+
+When a `[needs confirmation]` question gets its answer, add a `decision` entry and put one decision link at the end of the confirmed policy. Instead of change-history tables inside documents, decisions accumulate in the log and documents only point at them. The slug drops the brackets, `|`, commas and colons, so the `|` leaves a double dash in the anchor. From usage example 3:
+
+```markdown
+## [2026-11-03] decision | Popular tag list: most used first stays, ties are undefined, 10 tags are cut after sorting, and every viewer gets the same unpaginated list
+Result: GET /api/tags keeps the most-used-first order, leaves the order of equally used tags undefined, applies the 10-tag limit after sorting, and returns the same list without pagination to every viewer. Reason: answers from the maintainer; existing clients may rely on most-used-first and the limit keeps the tag sidebar short. Document: [Popular tag list](api/articles/tag-list.md#popular-tag-list)
 ```
 
 ```markdown
-### Minimum order amount
-The checkout button is disabled when the total is under 10,000 KRW. (decision: [2026-11-02](../log.md#2026-11-02-decision--minimum-order-amount-10000-krw-comes-from-the-shipping-fee-policy))
+### Popular tag list
+The tag list holds at most 10 names of tags used by at least one article, sorted by the number of articles that use each tag, most used first, and the server applies the 10-tag limit after sorting. … (decision: [2026-11-03](../../log.md#2026-11-03-decision--popular-tag-list-most-used-first-stays-ties-are-undefined-10-tags-are-cut-after-sorting-and-every-viewer-gets-the-same-unpaginated-list))
 ```
 
 The kinds are `ingest` (a source was applied), `query` (an answer fed back), `lint`, `drift`, `change` (a document changed) and `decision` (a question was settled).
@@ -304,52 +306,56 @@ Each generated SKILL.md starts with a comment naming the crumbs-spec version tha
 
 ## Usage examples
 
+Every example below was actually run on the Nitro backend from the experiment, in the [`usage/`](https://github.com/Sienna94/crumbs-spec-conduit/tree/main/usage) workspace of crumbs-spec-conduit. Example 1 is the experiment's Opus 5.5 writer. Examples 2–5 are a Claude Sonnet 5.5 agent that got only the request, read `AGENTS.md` and picked the skill itself; the author answered its questions as the maintainer would. Each example that changed files is one commit, linked below.
+
 ### 1. Document existing code for the first time
 
 ```
-Document the code under src/cart/ with crumbs-writer in "document existing code" mode.
-The domain directory is docs/specs/shopping/. Leave unconfirmed policies as questions and finish the whole thing.
+Document the code under ../vendor/nitro with crumbs-writer in "document existing code" mode,
+from code and tests only. Leave unconfirmed policies as questions and finish the whole thing.
 ```
 
-The agent reads the index and templates, follows code and tests from the entry point, and produces `shopping/overview.md` plus the detail documents. Rules confirmed by tests become policies; rules that exist only in code become "right now …" statements with `[needs confirmation]` questions. It ends by running `check`, clearing errors and adding a log entry.
+This is a shortened form of the experiment's [writer prompt](https://github.com/Sienna94/crumbs-spec-conduit/blob/main/eval/prompts/writer.md). The writer followed the code from the route handlers, split the API into four subdirectories and produced 21 detail documents with their overviews. The repository has only two unit test files, so 6 policies came out confirmed by tests and 45 as `[needs confirmation]` questions. It ended with `check` and a log entry ([commit](https://github.com/Sienna94/crumbs-spec-conduit/commit/572b0db)).
 
 ```
-crumbs check: 5 documents, 0 errors, 3 warnings
+crumbs check: 28 documents, 0 errors, 21 warnings
 ```
 
-The three warnings are the three documents that still have open questions. Skimming their "Open questions" sections is enough to see what has to be decided.
+The 21 warnings are the 21 detail documents that still have open questions. Their "Open questions" sections are the list of things the maintainer has to decide.
 
-### 2. Reflect a code change
+### 2. Find an answer
 
 ```
-I raised the cart quantity limit from 99 to 199. Update the docs.
+How many tags does GET /api/tags return, and in what order?
 ```
 
-The writer finds the owning document with `grep -rl 'src/cart/cart.ts' docs/specs` (the evidence section names the path), fixes the current-behavior section and the `### Quantity cap` policy, updates the value in the flow diagram, and logs `change | Cart quantity cap raised to 199`. If two documents look like owners it stops and asks which one is.
+The finder went index → API overview → articles overview → [tag-list.md](https://github.com/Sienna94/crumbs-spec-conduit/blob/main/nitro/docs/specs/api/articles/tag-list.md), four spec documents and no code. It answered: at most 10 names, most used first, only tags that at least one article uses, no pagination. It also said that two points are still `[needs confirmation]`: the order of tags with the same count and the basis of the limit. No file changed.
 
 ### 3. Ask about what is unknown and record the answer as a decision
 
 ```
-I want to change the coupon stacking rule. What do I need to confirm first?
+I want to change how the tag list is ordered. What do I need to confirm first?
 ```
 
-The interview skill lists the policies the request touches, separates those confirmed by code, tests or sources from those that are not, and turns the unconfirmed ones into questions. Once you answer, the writer rewrites the policy as confirmed and leaves a `decision` log entry and a decision link.
+The interview skill listed the eight policies the request touches, marked three as confirmed by code, and turned the rest into seven questions, from "does 'tag list' mean GET /api/tags or the tagList inside articles" to "do existing clients depend on the current order". It stopped without editing anything. The answer: only GET /api/tags; keep most used first; ties stay undefined on purpose; the 10-tag limit stays and applies after sorting. The writer then confirmed the policy and added a `decision` entry and the decision link (see [Log](#log)). `check` caught two things on the way: the decision link pointed at `../log.md` instead of `../../log.md` (`broken-link`), and current behavior grew to seven steps without a diagram (`missing-flow`), so the writer added one ([commit](https://github.com/Sienna94/crumbs-spec-conduit/commit/7b86052)).
 
 ### 4. Ingest a source document
 
 ```
-Apply docs/raw/coupon-policy-v3.pdf.
+The upstream API spec changed. Apply docs/raw/realworld-b8a37f1-validate-email-format.diff.
 ```
 
-The ingest skill reads the source, finds the affected documents through the index, backlinks and evidence, and shows the list of intended changes first. Only after confirmation does it edit the owning documents and add an `ingest` entry. There is no automatic merge.
+The source is the real upstream commit that added email-format validation to the RealWorld spec. The ingest skill read it, found the registration, login and account-update documents through the index and listed four claims. Then it stopped on a conflict: the source expects 422 "is invalid" for a malformed email, while the documents and the code say the format is not checked. Asked whether the source or the code wins, we chose the code, because documents describe current behavior. The skill wrote one `Email format` policy in the registration document with the current behavior and a question that cites the upstream spec, added one linking sentence to the login and update documents, and logged an `ingest` entry ([commit](https://github.com/Sienna94/crumbs-spec-conduit/commit/130946a)). Nothing was edited before the change list was confirmed.
 
-### 5. Find an answer
+### 5. Reflect a code change
 
 ```
-How many items can go into the cart?
+I added email format validation to registration, login and account update
+(server/schemas/user.schema.ts, not committed yet). A malformed email now gets 422
+with {"errors":{"email":["is invalid"]}}. Update the docs.
 ```
 
-The finder goes index → shopping overview → cart document and answers with `### Quantity cap` as the source. For term or concept questions it checks the terms section of `concepts/overview.md` first. If the documents do not answer, it says "not in the documents" and names the closest one.
+The writer found the owning document with `grep -rl 'user.schema' docs/specs`, since all three documents name that file under Evidence. It rewrote `Email format` as a confirmed policy, which closed the question from example 4, and updated the linking sentences in login and update and two flow diagrams. What the code did not settle, which addresses count as valid and whether a blank email also reports "is invalid", became a new question instead of a guess; a blank email does get both messages. The code and the documents are one commit ([commit](https://github.com/Sienna94/crumbs-spec-conduit/commit/32fd2f3)).
 
 ### 6. Check in CI
 

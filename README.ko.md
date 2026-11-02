@@ -177,47 +177,42 @@ docs/raw/                        계약서·기획 메모 같은 불변 원본
 | 확인 필요 사항 | `- [확인 필요] [정책 이름](#앵커) — 질문` |
 | 관련 문서 | 개요로 가는 링크와 이웃 문서. 역링크는 상호여야 해요 |
 
-예시(`docs/specs/shopping/장바구니.md`):
+예시: [RealWorld 실험](#처음-보는-코드에서도-맞게-쓸까요-realworld-실험)에서 writer가 Nitro 코드로 만든 상세 문서를 고치지 않고 그대로 실었어요([원본](https://github.com/Sienna94/crumbs-spec-conduit/blob/main/nitro/docs/specs/api/articles/tag-list.md)). 이 저장소는 `lang: en`이라 제목이 영어예요. 아래 사용 예시 3에서 이 문서의 질문에 답하고 흐름도가 추가돼요.
 
 ````markdown
-# 장바구니
-<!-- ../index.md를 먼저 읽는다. 이 문서를 바꾼 뒤 ../log.md에 항목을 추가한다 -->
+# Tag list
+<!-- Read ../../index.md first. After changing this document, add an entry to ../../log.md -->
 
-## 목적
-사용자가 상품을 담고 수량을 바꾸고 비울 때까지의 흐름을 맡는다. 쿠폰 적용은 [쿠폰 할인](쿠폰-할인.md)이 맡는다.
+## Purpose
+This document owns GET /api/tags, which returns the most used tag names. How tags are attached to articles is owned by [Article creation](article-create.md#article-tag-name-handling). The endpoint allows anonymous viewers as described in [Authentication token](../authentication-token.md), and the list is the same for anonymous and signed-in viewers.
 
-## 현재 동작
-- 사용자가 같은 상품을 다시 담으면 앱은 수량을 더한다.
-- 수량이 99를 넘으면 앱은 "최대 99개까지 담을 수 있습니다." 안내를 보이고 담지 않는다.
+## Current behavior
+- The server considers only tags that at least one article uses.
+- The server sorts those tags by the number of articles that use them, most used first.
+- The server returns at most 10 tag names.
+- The server responds with status 200 and {"tags": ["<name>"…]}.
+- If no article uses a tag, the list is empty.
 
-## 흐름
-```mermaid
-flowchart TD
-    A["상품 담기"] --> B{"같은 상품이 있나"}
-    B -->|예| C["수량 합산"]
-    B -->|아니오| D["새 줄 추가"]
-    C --> E{"99 초과"}
-    E -->|예| F["안내 후 담지 않음"]
-```
+## Flow
+None
 
-## 정책
-### 수량 상한
-장바구니 한 줄의 수량은 99 이하다.
+## Policies
+### Popular tag list
+The tag list holds at most 10 names of tags used by at least one article, sorted by the number of articles that use each tag, most used first. The order of tags used by the same number of articles is not defined, and the list has no pagination. No test covers this rule.
+[needs confirmation] What is the basis of the 10-tag limit, and what should order tags with the same usage count?
 
-### 최소 주문 금액
-지금은 합계가 10,000원 미만이면 결제 버튼을 비활성화한다.
-[확인 필요] 10,000원이라는 기준의 근거는 무엇인가?
+## Evidence
+- `server/routes/api/tags/index.get.ts` — selects tags used by at least one article, sorts them by usage and returns at most 10 names
+- `prisma/schema.prisma` — unique tag names and the relation between tags and articles
 
-## 근거
-- `src/cart/cart.ts:12-48` — 담기와 수량 합산
-- `test/cart/cart.test.ts` — 수량 상한
+## Open questions
+- [needs confirmation] [Popular tag list](#popular-tag-list) — What is the basis of the 10-tag limit, and what should order tags with the same usage count?
 
-## 확인 필요 사항
-- [확인 필요] [최소 주문 금액](#최소-주문-금액) — 10,000원이라는 기준의 근거는 무엇인가?
-
-## 관련 문서
-- [쇼핑 개요](overview.md)
-- [쿠폰 할인](쿠폰-할인.md)
+## Related
+- [Articles API overview](overview.md)
+- [Article creation](article-create.md)
+- [Article update](article-update.md)
+- [Article deletion](article-delete.md)
 ````
 
 문서 본문은 간결한 `-한다`체로 써요. 개요의 `## 용어`는 별칭을 소유 정책으로 잇는 링크 목록이에요(`- 정액권(정액제) — [정액권 이용 중 판정](정액권.md#정액권-이용-중-판정)`). 정의만 있는 용어는 여기서 끝나고, 여러 흐름이 분기 축으로 쓰는 개념(채널, 재화, 회원 상태)만 `concepts/`에 소유 문서를 둬요.
@@ -235,13 +230,15 @@ npx crumbs-spec log add --kind <ingest|query|lint|drift|change|decision> "<제�
 `check`의 출력은 `파일:줄 심각도 규칙: 메시지` 한 줄씩이고 마지막 줄이 요약이에요.
 
 ```
-docs/specs/shopping/장바구니.md:34 error broken-anchor: 앵커가 없음: 쿠폰-할인.md#적용-순서
-docs/specs/shopping/장바구니.md:20 warning open-question: 미해결 질문 1개
-
-crumbs check: 문서 4개, 오류 1개, 경고 1개
+docs/specs/api/articles/tag-list.md:31 error broken-link: link target not found: ../log.md#2026-11-03-decision--popular-tag-list-most-used-first-stays-ties-are-undefined-10-tags-are-cut-after-sorting-and-every-viewer-gets-the-same-unpaginated-list
+docs/specs/api/articles/article-delete.md:44 warning open-question: 1 open question(s)
+…
+crumbs check: 28 documents, 1 error, 20 warnings
 ```
 
-**지원하는 Markdown.** 제목은 ATX(`#`부터 `######`까지)만 인식하고 setext 제목(밑줄식)은 인식하지 않아요. 인라인 링크와 참조 링크(`[텍스트][라벨]`, `[라벨][]`와 `[라벨]: 경로` 정의)를 검사해요. `[라벨]`만 쓴 축약 참조는 링크가 아니에요. 제목 앵커는 github-slugger 방식이에요. 공백마다 `-`가 되고, `-`와 `_`를 뺀 문장부호는 지우며, 연속된 `-`는 합치지 않아요. 예를 들어 `### 수량 & 한도`는 `#수량--한도`가 돼요. 스펙 루트 아래의 심볼릭 링크 파일과 디렉터리도 따라가요. 근거 경로에는 `/`가 있어야 하며 저장소 루트의 파일은 `./package.json`처럼 써요. `:12`, `:12-48`, `:12:5`, `:12-48,60-70` 같은 줄 표기를 받아요. `exclude` 항목은 스펙 루트 기준 상대 경로이고, `/`로 끝나면 그 디렉터리를 제외해요. JSON 출력의 모든 항목에는 `line`이 있어요(더 나은 위치가 없으면 1).
+사용 예시 3에서 writer가 결정 링크를 고치기 전에 나온 출력이고, 나머지 경고 19개는 생략했어요. 이 저장소는 `lang: en`이라 메시지가 영어예요. `lang: ko`에서는 `링크 대상이 없음`, `미해결 질문 1개`, `crumbs check: 문서 28개, 오류 1개, 경고 20개`처럼 나와요.
+
+**지원하는 Markdown.** 제목은 ATX(`#`부터 `######`까지)만 인식하고 setext 제목(밑줄식)은 인식하지 않아요. 인라인 링크와 참조 링크(`[텍스트][라벨]`, `[라벨][]`와 `[라벨]: 경로` 정의)를 검사해요. `[라벨]`만 쓴 축약 참조는 링크가 아니에요. 제목 앵커는 github-slugger 방식이에요. 공백마다 `-`가 되고, `-`와 `_`를 뺀 문장부호는 지우며, 연속된 `-`는 합치지 않아요. 예를 들어 `### 수량 & 한도`는 `#수량--한도`가 돼요. 스펙 루트 아래의 심볼릭 링크 파일과 디렉터리도 따라가요. 근거 경로는 `codeRoot`(기본값은 저장소 루트) 기준으로 해석하고, `rawDir` 아래 경로만 언제나 저장소 루트 기준으로 해석해요. 근거 경로에는 `/`가 있어야 하며 저장소 루트의 파일은 `./package.json`처럼 써요. `:12`, `:12-48`, `:12:5`, `:12-48,60-70` 같은 줄 표기를 받아요. `exclude` 항목은 스펙 루트 기준 상대 경로이고, `/`로 끝나면 그 디렉터리를 제외해요. JSON 출력의 모든 항목에는 `line`이 있어요(더 나은 위치가 없으면 1).
 
 ### 검사 규칙
 
@@ -266,25 +263,30 @@ crumbs check: 문서 4개, 오류 1개, 경고 1개
 
 ## 로그
 
-로그는 한 곳(`docs/specs/log.md`)에 시간순으로 덧붙여요. 제목은 작업명이 아니라 **사용자 결과 한 문장**이고, 본문은 세 줄이에요.
+로그는 한 곳(`docs/specs/log.md`)에 시간순으로 덧붙여요. 제목은 작업명이 아니라 **사용자 결과 한 문장**이고, 본문은 세 줄이에요. 항목은 `log add`로 쓰고, 제목이나 본문에 `<!--`가 있으면 거부해요.
 
 ```bash
-npx crumbs-spec log add --kind change "장바구니 수량 상한을 99로 올림" \
-  --body "결과: 한 줄에 99개까지 담을 수 있다. 이유: 요청 SHOP-42. 문서: [수량 상한](shopping/장바구니.md#수량-상한)"
+npx crumbs-spec log add --kind change "<사용자 결과 한 문장>" \
+  --body "결과: <바뀐 것>. 이유: <까닭>. 문서: [<정책>](<도메인>/<문서>.md#<앵커>)"
 ```
 
-`log add`는 제목이나 본문에 `<!--`가 있으면 거부해요.
-
-`[확인 필요]` 질문이 답을 얻으면 `decision` 항목을 남기고, 확정한 정책 본문 끝에 결정 링크 하나를 둬요. 문서 안에 변경 이력을 두지 않는 대신 결정은 로그에 쌓이고 문서는 링크로만 가리켜요. 슬러그는 대괄호·`|`·쉼표·콜론을 빼므로, `|`가 있던 자리는 `--`가 돼요.
+사용 예시 5에서 남긴 항목이에요. 이 저장소는 `lang: en`이라 본문 머리가 `Result:`, `Reason:`, `Document:`예요.
 
 ```markdown
-## [2026-11-02] decision | 최소 주문 금액: 10,000원은 배송비 정책에서 온 값이다
-결과: 합계 10,000원 미만이면 결제 버튼이 비활성이다. 이유: 2026-11-02 기획 확인. 문서: [최소 주문 금액](shopping/장바구니.md#최소-주문-금액)
+## [2026-11-03] change | A malformed email on registration, login and account update is rejected with 422 and is invalid
+Result: a malformed email on registration, login and account update gets status 422 with {"errors": {"email": ["is invalid"]}}; 3 api documents updated and 1 open question remains about accepted address forms. Reason: code change in server/schemas/user.schema.ts, reported by the user. Document: [Email format](api/users/registration.md#email-format)
+```
+
+`[확인 필요]` 질문이 답을 얻으면 `decision` 항목을 남기고, 확정한 정책 본문 끝에 결정 링크 하나를 둬요. 문서 안에 변경 이력을 두지 않는 대신 결정은 로그에 쌓이고 문서는 링크로만 가리켜요. 슬러그는 대괄호·`|`·쉼표·콜론을 빼므로, `|`가 있던 자리는 `--`가 돼요. 사용 예시 3에서 남긴 결정이에요.
+
+```markdown
+## [2026-11-03] decision | Popular tag list: most used first stays, ties are undefined, 10 tags are cut after sorting, and every viewer gets the same unpaginated list
+Result: GET /api/tags keeps the most-used-first order, leaves the order of equally used tags undefined, applies the 10-tag limit after sorting, and returns the same list without pagination to every viewer. Reason: answers from the maintainer; existing clients may rely on most-used-first and the limit keeps the tag sidebar short. Document: [Popular tag list](api/articles/tag-list.md#popular-tag-list)
 ```
 
 ```markdown
-### 최소 주문 금액
-합계가 10,000원 미만이면 결제 버튼을 비활성화한다. (결정: [2026-11-02](../log.md#2026-11-02-decision--최소-주문-금액-10000원은-배송비-정책에서-온-값이다))
+### Popular tag list
+The tag list holds at most 10 names of tags used by at least one article, sorted by the number of articles that use each tag, most used first, and the server applies the 10-tag limit after sorting. … (decision: [2026-11-03](../../log.md#2026-11-03-decision--popular-tag-list-most-used-first-stays-ties-are-undefined-10-tags-are-cut-after-sorting-and-every-viewer-gets-the-same-unpaginated-list))
 ```
 
 kind는 `ingest`(원본 자료 반영), `query`(답을 찾아 환류), `lint`, `drift`, `change`(문서 변경), `decision`(질문 확정)이에요.
@@ -304,52 +306,56 @@ kind는 `ingest`(원본 자료 반영), `query`(답을 찾아 환류), `lint`, `
 
 ## 사용 예시
 
+아래 예시는 모두 실험의 Nitro 백엔드로 crumbs-spec-conduit의 [`usage/`](https://github.com/Sienna94/crumbs-spec-conduit/tree/main/usage) 작업공간에서 실제로 돌린 결과예요. 예시 1은 실험의 Opus 5.5 writer예요. 예시 2~5는 요청문만 받은 Claude Sonnet 5.5 에이전트가 `AGENTS.md`를 읽고 스킬을 스스로 골랐고, 에이전트가 물은 것은 작성자가 관리자 입장에서 답했어요. 요청문은 실제로 보낸 영어 그대로 옮겼고, 파일을 바꾼 예시는 하나씩 커밋으로 남겨 링크했어요.
+
 ### 1. 기존 코드를 처음 문서화해요
 
 ```
-src/cart/ 아래 코드를 crumbs-writer의 "기존 코드 문서화" 모드로 문서화해 줘.
-도메인 디렉터리는 docs/specs/shopping/이고, 확인하지 못한 정책은 질문으로 남기고 끝까지 해 줘.
+Document the code under ../vendor/nitro with crumbs-writer in "document existing code" mode,
+from code and tests only. Leave unconfirmed policies as questions and finish the whole thing.
 ```
 
-에이전트는 인덱스와 템플릿을 읽고, 진입점부터 코드와 테스트를 따라가며 `shopping/overview.md`와 상세 문서를 만들어요. 테스트가 확정하는 규칙은 정책으로, 코드에만 있는 규칙은 "지금은 …" 서술과 `[확인 필요]` 질문으로 적어요. 끝에 `check`를 돌려 오류를 없애고 로그를 남겨요.
+실험의 [writer 프롬프트](https://github.com/Sienna94/crumbs-spec-conduit/blob/main/eval/prompts/writer.md)를 줄인 형태예요. writer는 라우트 처리기부터 코드를 따라가며 API를 하위 디렉터리 네 개로 나누고, 상세 문서 21개와 개요를 만들었어요. 저장소에 단위 테스트 파일이 2개뿐이라 테스트로 확정된 정책은 6개, `[needs confirmation]` 질문은 45개였어요. 마지막에 `check`를 돌리고 로그를 남겼어요([커밋](https://github.com/Sienna94/crumbs-spec-conduit/commit/572b0db)).
 
 ```
-crumbs check: 문서 5개, 오류 0개, 경고 3개
+crumbs check: 28 documents, 0 errors, 21 warnings
 ```
 
-경고 3개는 질문이 남은 문서 3개예요. 각 문서의 `확인 필요 사항` 절만 훑어도 무엇을 결정해야 하는지 알 수 있어요.
+경고 21개는 아직 질문이 남은 상세 문서 21개예요. 각 문서의 "Open questions" 절이 관리자가 정해야 할 목록이에요.
 
-### 2. 코드 변경을 문서에 반영해요
+### 2. 답을 찾아요
 
 ```
-장바구니 수량 상한을 99에서 199로 올렸어. 문서도 맞춰 줘.
+How many tags does GET /api/tags return, and in what order?
 ```
 
-writer는 `grep -rl 'src/cart/cart.ts' docs/specs`로 근거에 그 경로를 적은 소유 문서를 찾고, "현재 동작"과 `### 수량 상한` 본문을 고치고, 흐름 도식의 값을 맞추고, 로그에 `change | 장바구니 수량 상한을 199로 올림`을 남겨요. 소유 문서가 둘로 보이면 멈추고 어느 쪽이 소유자인지 물어요.
+finder는 색인 → API 개요 → 글 개요 → [tag-list.md](https://github.com/Sienna94/crumbs-spec-conduit/blob/main/nitro/docs/specs/api/articles/tag-list.md) 순서로 스펙 문서 4개만 읽고, 코드는 보지 않은 채 답했어요. 태그는 최대 10개이고, 많이 쓰인 순서이며, 글 하나 이상이 쓰는 태그만 나오고 페이지 나눔은 없다고요. 같은 개수인 태그의 순서와 10개 제한의 근거는 아직 `[needs confirmation]`이라는 점도 함께 알렸어요. 바뀐 파일은 없어요.
 
 ### 3. 모르는 정책은 묻고, 답은 결정으로 남겨요
 
 ```
-쿠폰 중복 적용 규칙을 바꾸려고 해. 먼저 뭘 확인해야 하지?
+I want to change how the tag list is ordered. What do I need to confirm first?
 ```
 
-interview가 요청이 건드리는 정책을 나열하고, 코드·테스트·원본으로 확인된 것과 미확인인 것을 가른 뒤 미확인 정책을 질문으로 내요. 답하시면 writer가 정책을 확정 서술로 바꾸고 `decision` 로그와 결정 링크를 남겨요.
+질문 스킬은 요청이 건드리는 정책 8개를 찾아 코드로 확정된 3개를 표시하고, 나머지를 질문 7개로 만들었어요. "태그 목록이 GET /api/tags인지 글 안의 tagList인지"부터 "기존 클라이언트가 지금 순서에 기대는지"까지예요. 문서는 하나도 고치지 않고 멈췄어요. 답은 이랬어요. 대상은 GET /api/tags뿐이고, 많이 쓰인 순서를 유지하고, 같은 개수의 순서는 일부러 정하지 않으며, 10개 제한은 정렬 뒤에 그대로 적용해요. writer가 정책을 확정하고 `decision` 항목과 결정 링크를 남겼어요([로그](#로그) 참고). 그 과정에서 `check`가 두 가지를 잡았어요. 결정 링크가 `../../log.md`가 아니라 `../log.md`를 가리킨 것(`broken-link`), 그리고 현재 동작이 일곱 단계로 늘었는데 흐름도가 없는 것(`missing-flow`)이에요. 그래서 writer가 흐름도를 추가했어요([커밋](https://github.com/Sienna94/crumbs-spec-conduit/commit/7b86052)).
 
 ### 4. 원본 자료를 반영해요
 
 ```
-docs/raw/coupon-policy-v3.pdf를 반영해 줘.
+The upstream API spec changed. Apply docs/raw/realworld-b8a37f1-validate-email-format.diff.
 ```
 
-ingest가 자료를 읽고 영향을 받는 문서를 인덱스·역링크·근거로 찾아 "바꿀 내용 목록"을 먼저 보여 줘요. 확인을 받은 뒤에만 소유 문서를 고치고 `ingest` 로그를 남겨요. 자동 병합은 하지 않아요.
+자료는 RealWorld 스펙에 이메일 형식 검사를 추가한 실제 상위 커밋이에요. 반영 스킬은 자료를 읽고 색인을 따라 회원가입·로그인·정보 수정 문서를 찾은 뒤, 자료의 주장 4개를 정리했어요. 그리고 충돌에서 멈췄어요. 자료는 형식이 틀린 이메일에 422 "is invalid"를 기대하는데, 문서와 코드는 형식을 검사하지 않는다고 해요. 자료와 코드 중 무엇을 따를지 물어서, 문서는 현재 동작을 설명하므로 코드를 따르기로 했어요. 스킬은 회원가입 문서에 `Email format` 정책 하나를 두고 현재 동작과 상위 스펙을 인용한 질문을 적었어요. 로그인·정보 수정 문서에는 그 정책으로 가는 문장 하나씩만 넣고 `ingest` 항목을 남겼어요([커밋](https://github.com/Sienna94/crumbs-spec-conduit/commit/130946a)). 변경 목록을 확인받기 전에는 아무것도 고치지 않았어요.
 
-### 5. 답을 찾아요
+### 5. 코드 변경을 문서에 반영해요
 
 ```
-장바구니에 몇 개까지 담을 수 있어?
+I added email format validation to registration, login and account update
+(server/schemas/user.schema.ts, not committed yet). A malformed email now gets 422
+with {"errors":{"email":["is invalid"]}}. Update the docs.
 ```
 
-finder는 인덱스 → 쇼핑 개요 → 장바구니 문서 순으로 내려가 `### 수량 상한`을 출처로 답해요. 용어·개념 질문이면 `concepts/overview.md`의 용어 절을 먼저 봐요. 문서에 답이 없으면 "문서에 없음"과 가장 가까이 간 문서를 말해요.
+writer는 `grep -rl 'user.schema' docs/specs`로 소유 문서를 찾았어요. 세 문서 모두 근거 절에 이 파일을 적어 두었기 때문이에요. `Email format`을 확정 정책으로 고쳐 예시 4의 질문을 닫고, 로그인·정보 수정의 연결 문장과 흐름도 두 개를 고쳤어요. 코드만으로 정해지지 않는 것, 즉 어떤 주소를 유효로 볼지와 빈 이메일이 "is invalid"도 함께 보고하는지는 추측하지 않고 새 질문으로 남겼어요. 실제로 빈 이메일에는 두 메시지가 모두 나와요. 코드와 문서는 한 커밋이에요([커밋](https://github.com/Sienna94/crumbs-spec-conduit/commit/32fd2f3)).
 
 ### 6. CI에서 검사해요
 
