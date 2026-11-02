@@ -89,7 +89,7 @@ docs/raw/README.md               raw sources directory (read-only)
 AGENTS.md                        crumbs block (agent rules)
 ```
 
-Until the package is on npm, run it from the repository with `npm run build` and then `node dist/src/cli.js <command>`.
+The package is on npm as [`crumbs-spec`](https://www.npmjs.com/package/crumbs-spec). To run it from a clone instead, use `npm run build` and then `node dist/src/cli.js <command>`.
 
 ## Adding it to an existing project
 

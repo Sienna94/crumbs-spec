@@ -89,7 +89,7 @@ docs/raw/README.md               원본 자료 디렉터리(읽기 전용)
 AGENTS.md                        crumbs 블록(에이전트 규칙)
 ```
 
-npm에 공개하기 전에는 저장소에서 `npm run build` 뒤 `node dist/src/cli.js <명령>`으로 실행해요.
+npm에 [`crumbs-spec`](https://www.npmjs.com/package/crumbs-spec)으로 올라가 있어요. 저장소를 클론해서 쓰려면 `npm run build` 뒤 `node dist/src/cli.js <명령>`으로 실행해요.
 
 ## 기존 프로젝트에 추가하기
 
