@@ -14,12 +14,20 @@ import { cleanup } from './helpers.js';
 
 after(cleanup);
 
-test('1. 슬러그: GitHub 방식이며 한국어 글자를 유지하고 중복에는 -1, -2를 붙인다', () => {
+test('1. 슬러그: github-slugger와 같은 결과를 내고 한국어 글자를 유지하며 중복에는 -1, -2를 붙인다', () => {
   assert.equal(slugify('Current behavior'), 'current-behavior');
   assert.equal(slugify('현재 동작'), '현재-동작');
   assert.equal(slugify('Session lifetime (v2)'), 'session-lifetime-v2');
   assert.equal(slugify('A.B/C'), 'abc');
   assert.equal(slugify('C# notes'), 'c-notes');
+  // 공백은 압축하지 않고 하나씩 -로 바꾼다. 문자가 아닌 기호는 지운다.
+  assert.equal(slugify('정액권 & 쿠폰'), '정액권--쿠폰');
+  assert.equal(slugify('로그인 / 로그아웃'), '로그인--로그아웃');
+  assert.equal(slugify('A — B'), 'a--b');
+  // 단어 경계의 _는 슬러그에 남고, 짝을 이룬 강조의 _만 제목 정리에서 지워진다.
+  assert.equal(slugify('_private_api'), '_private_api');
+  assert.equal(scanMarkdown('## _private_api\n').headings[0].slug, '_private_api');
+  assert.equal(scanMarkdown('## _emph_ text\n').headings[0].slug, 'emph-text');
   assert.deepEqual(scanMarkdown('## x\n## x\n## x\n').headings.map((h) => h.slug), ['x', 'x-1', 'x-2']);
   assert.deepEqual(scanMarkdown('## 목적\n## 목적\n').headings.map((h) => h.slug), ['목적', '목적-1']);
   assert.equal(scanMarkdown('## `foo` bar\n').headings[0].slug, 'foo-bar');
@@ -45,6 +53,16 @@ test('2. 펜스와 HTML 주석 안의 제목·링크·마커는 무시하고, ~~
   // 펜스 안의 <!--는 주석을 열지 않는다.
   const fenceComment = scanMarkdown('```\n<!--\n```\n## 보임\n');
   assert.deepEqual(fenceComment.headings.map((h) => h.text), ['보임']);
+});
+
+test('2a. 주석 감지: 코드 스팬 안의 <!--는 주석을 열지 않고, 파일 끝까지 닫히지 않은 주석은 시작 줄을 기록한다', () => {
+  const inline = scanMarkdown('본문 `<!--` 설명\n## 근거\n');
+  assert.deepEqual(inline.headings.map((h) => h.text), ['근거']);
+  assert.equal(inline.unterminatedComment, undefined);
+
+  const open = scanMarkdown('<!-- 열림\n## 숨김\n');
+  assert.deepEqual(open.headings, []);
+  assert.equal(open.unterminatedComment, 1);
 });
 
 test('3. 링크: 줄 번호와 함께 추출하고 이미지·코드 스팬·펜스 안은 건너뛰며, 외부·fragment·루트 기준을 분류한다', () => {
@@ -82,6 +100,43 @@ test('3. 링크: 줄 번호와 함께 추출하고 이미지·코드 스팬·펜
   assert.deepEqual(percent, { kind: 'internal', path: docAbs, fragment: '정책' });
 });
 
+test('3a. 링크 대상: 균형 잡힌 괄호, <…> 공백, 작은따옴표·괄호 제목, 참조 링크를 읽고, 단독 [라벨]과 정의 줄은 링크가 아니다', () => {
+  const source = [
+    '[괄호](my%20(v2).md)',
+    '[공백](<my file.md>)',
+    "[제목](a.md 'single')",
+    '[제목](a.md (paren title))',
+    '[참조][ref] 본문',
+    '[Ref][] 본문',
+    '[확인 필요] 질문',
+    '[x]()',
+    '![그림](img.png)',
+    '[ref]: ref.md "T"',
+  ].join('\n');
+  const scan = scanMarkdown(source);
+  assert.deepEqual(scan.links.map((link) => [link.line, link.rawTarget]), [
+    [1, 'my%20(v2).md'],
+    [2, 'my file.md'],
+    [3, 'a.md'],
+    [4, 'a.md'],
+    [5, 'ref.md'],
+    [6, 'ref.md'],
+  ]);
+  assert.equal(scan.links[4].text, '참조');
+  // 단독 [확인 필요]는 링크가 아니지만 마커로는 그대로 센다.
+  assert.deepEqual(scan.markerLines, [7]);
+
+  const root = '/repo';
+  const docAbs = join(root, 'docs/specs/auth/login.md');
+  assert.deepEqual(classifyTarget('my%20(v2).md', docAbs, root), {
+    kind: 'internal',
+    path: join(root, 'docs/specs/auth/my (v2).md'),
+  });
+
+  // 정의는 펜스 안에 있으면 세지 않으므로 그 라벨을 쓰는 참조도 풀리지 않는다.
+  assert.equal(scanMarkdown('```\n[ref]: fenced.md\n```\n[x][ref]\n').links.length, 0);
+});
+
 test('4. 절: H2로 나누고 H3 이상을 자식으로 기록하며, 어휘 키는 대소문자와 공백 차이를 무시하고 맞춘다', () => {
   const scan = scanMarkdown('# 제목\n## 목적\n### 세부\n#### 더 깊은\n##  현재   동작\n## 근거\n');
   const sections = buildSections(scan, VOCAB.ko);
@@ -95,14 +150,30 @@ test('4. 절: H2로 나누고 H3 이상을 자식으로 기록하며, 어휘 키
   assert.deepEqual(buildSections(english, { ...VOCAB.ko, purpose: 'Purpose' }).map((s) => s.key), ['purpose']);
 });
 
-test('5. 근거 후보: 허용되는 형태만 받아들이고, 근거 절 밖의 후보는 무시한다', () => {
-  assert.equal(evidenceCandidate('src/a.ts'), 'src/a.ts');
-  assert.equal(evidenceCandidate('src/a.ts:10'), 'src/a.ts');
-  assert.equal(evidenceCandidate('src/a.ts:10-20'), 'src/a.ts');
-  assert.equal(evidenceCandidate('src/'), 'src/');
-  assert.equal(evidenceCandidate('UserService'), undefined);
-  assert.equal(evidenceCandidate('http://x'), undefined);
-  assert.equal(evidenceCandidate('a b/c'), undefined);
+test('5. 근거 후보: 줄 범위를 떼고 /가 있는 경로만 받아들이며, URL·도트 식별자·파일 이름은 거부하고, 근거 절 밖의 후보는 무시한다', () => {
+  const accepted: [string, string][] = [
+    ['src/a.ts', 'src/a.ts'],
+    ['src/a.ts:10', 'src/a.ts'],
+    ['src/a.ts:10-20', 'src/a.ts'],
+    ['src/a.ts:12:5', 'src/a.ts'],
+    ['src/a.ts:12-48,60-70', 'src/a.ts'],
+    ['src/', 'src/'],
+    ['./package.json', './package.json'],
+  ];
+  for (const [input, path] of accepted) assert.equal(evidenceCandidate(input), path, input);
+
+  const rejected = [
+    'Navigator.push',
+    'v1.2',
+    'api.example.com',
+    'user.id',
+    'UserService',
+    'ftp://host/x',
+    'http://x/y',
+    'mailto:x@y.z',
+    'a b/c',
+  ];
+  for (const input of rejected) assert.equal(evidenceCandidate(input), undefined, input);
 
   const scan = scanMarkdown('`src/outside.ts`\n## 근거\n`src/a.ts:10`\n## 기타\n`src/later.ts`\n');
   const sections = buildSections(scan, VOCAB.ko);
@@ -117,7 +188,7 @@ test('6. 마커: [확인 필요]와 [needs confirmation]을 모두 세고 펜스
   assert.deepEqual(scan.markerLines, [2, 3]);
 });
 
-test('6a. 흐름 신호: mermaid 펜스·표 구분선·불릿 줄을 펜스와 주석 밖에서만 세고, mermaid는 정보 문자열을 trim·소문자화한 뒤 비교한다', () => {
+test('6a. 흐름 신호: mermaid 펜스·표 구분선·불릿과 번호 목록 줄을 펜스와 주석 밖에서 줄 번호로 기록하고, mermaid는 정보 문자열을 trim·소문자화한 뒤 비교한다', () => {
   const scan = scanMarkdown(
     [
       '# 제목',
@@ -141,9 +212,10 @@ test('6a. 흐름 신호: mermaid 펜스·표 구분선·불릿 줄을 펜스와 
       '-->',
       '+ 넷째',
       '---',
+      '1. 셋째',
     ].join('\n'),
   );
-  assert.equal(scan.mermaidFences, 1);
-  assert.equal(scan.tableRows, 1);
-  assert.deepEqual(scan.bulletLines, [3, 4, 20]);
+  assert.deepEqual(scan.mermaidFenceLines, [5]);
+  assert.deepEqual(scan.tableRuleLines, [15]);
+  assert.deepEqual(scan.bulletLines, [3, 4, 20, 22]);
 });

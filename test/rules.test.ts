@@ -71,6 +71,20 @@ test('13. broken-link: 없는 대상은 줄 번호와 함께 오류, 제외 템�
   ]);
 });
 
+test('13a. broken-link 철자: 링크 철자가 디스크 파일과 다르면 macOS에서는 철자 오류 하나만 내고 도달 불가를 더하지 않으며, 다른 파일 시스템에서는 일반 대상 없음 오류다', () => {
+  const overviewText = OVERVIEW_TEXT.replace('[로그인](login.md)', '[로그인](Login.md)');
+  const report = check(fixture({ [OVERVIEW]: overviewText }));
+  const broken = rulesNamed(report.findings, 'broken-link');
+  if (process.platform === 'darwin') {
+    assert.deepEqual(broken.map((f) => [f.file, f.line, f.message]), [
+      [OVERVIEW, lineOf(overviewText, 'Login.md'), '링크 철자가 디스크의 파일과 다름: Login.md (파일: docs/specs/auth/login.md)'],
+    ]);
+    assert.equal(rulesNamed(report.findings, 'unreachable').length, 0);
+  } else {
+    assert.deepEqual(broken.map((f) => f.message), ['링크 대상이 없음: Login.md']);
+  }
+});
+
 test('14. broken-anchor: 잘못된 fragment는 오류, 올바른 한국어 fragment는 원문과 퍼센트 인코딩 모두 통과, .md가 아닌 대상과 같은 문서 링크를 바르게 다룬다', () => {
   const overviewWithLinks = `${OVERVIEW_TEXT}- [잘못](login.md#없음)\n- [정책](login.md#정책)\n- [정책2](login.md#%EC%A0%95%EC%B1%85)\n`;
   const files = fixture({
@@ -99,6 +113,11 @@ test('15. unreachable: 아무도 링크하지 않는 상세 문서와 도달 불
     'docs/specs/auth/chain2.md',
     'docs/specs/auth/orphan.md',
   ]);
+  assert.deepEqual(
+    rulesNamed(check(orphans).findings, 'unreachable').map((f) => f.line),
+    [1, 1, 1],
+    '도달 불가 발견은 문서 제목 줄을 가리킨다',
+  );
 
   const linked = fixture({
     'docs/specs/auth/orphan.md': detailDoc('고아'),
@@ -127,6 +146,21 @@ test('16. missing-section: 상세 문서에서 "## 근거"를 지우면 그 제�
   assert.equal(indexSections.length, 0);
 });
 
+test('16a. missing-section 비문서: 필수 절이 하나도 없으면 발견 하나로 exclude를 안내하고, exclude에 넣으면 사라지며, 파일이 스펙 루트 바로 아래면 파일 이름을 안내한다', () => {
+  const adr = englishFixture({ 'docs/specs/adr/0001.md': '# ADR\n\n자유 형식 메모.\n', 'docs/specs/notes.md': '# Notes\n\nfree text\n' });
+  const found = rulesNamed(checkRepo(makeRepo(adr)).findings, 'missing-section');
+  assert.deepEqual(found.map((f) => [f.file, f.line, f.message]), [
+    ['docs/specs/adr/0001.md', 1, 'no spec sections found; if this is not a crumbs document, add "adr/" to "exclude" in crumbs.json'],
+    ['docs/specs/notes.md', 1, 'no spec sections found; if this is not a crumbs document, add "notes.md" to "exclude" in crumbs.json'],
+  ]);
+
+  const excluded = englishFixture({
+    'docs/specs/adr/0001.md': '# ADR\n\n자유 형식 메모.\n',
+    'crumbs.json': `${JSON.stringify({ ...DEFAULT_CONFIG, lang: 'en', exclude: ['adr'] }, null, 2)}\n`,
+  });
+  assert.deepEqual(rulesNamed(checkRepo(makeRepo(excluded)).findings, 'missing-section'), []);
+});
+
 test('17. missing-backlink: (a) 개요·상세가 부모로 돌아가지 않으면 오류, (b) 상세 A가 B를 링크하면 B도 A를 링크해야 하며, 개요→상세 링크는 (b)를 만들지 않는다', () => {
   // (a) 상세 문서가 부모 개요로 돌아가지 않음
   const bare = '# 벌거벗은\n\n## 목적\n목적.\n\n## 현재 동작\n동작.\n\n## 근거\n- `src/auth/session.ts` — 세션\n\n## 관련 문서\n- [스펙 인덱스](../index.md)\n';
@@ -135,6 +169,7 @@ test('17. missing-backlink: (a) 개요·상세가 부모로 돌아가지 않으�
   assert.deepEqual(backlinkA.map((f) => [f.file, f.message]), [
     ['docs/specs/auth/bare.md', `${OVERVIEW}로 돌아가는 링크가 없음`],
   ]);
+  assert.equal(backlinkA[0].line, lineOf(bare, '## 관련 문서'), '(a)의 줄은 관련 문서 절의 제목 줄이다');
 
   // (a) 개요가 인덱스로 돌아가지 않음
   const overviewNoIndex = OVERVIEW_TEXT.replace('- [스펙 인덱스](../index.md)\n', '');
@@ -142,6 +177,7 @@ test('17. missing-backlink: (a) 개요·상세가 부모로 돌아가지 않으�
   assert.deepEqual(rulesNamed(overviewReport.findings, 'missing-backlink').map((f) => [f.file, f.message]), [
     [OVERVIEW, `${INDEX}로 돌아가는 링크가 없음`],
   ]);
+  assert.equal(rulesNamed(overviewReport.findings, 'missing-backlink')[0].line, lineOf(overviewNoIndex, '## 관련 문서'));
 
   // (b) login이 password-reset을 링크하는데 되돌아오는 링크가 없다. 개요→상세 링크는 (b)를 만들지 않는다.
   const oneWay = fixture({
@@ -231,8 +267,17 @@ test('19. duplicate-policy: 두 상세 문서에 같은 정책이 있으면 문�
   });
   assert.equal(rulesNamed(check(caseOnly).findings, 'duplicate-policy').length, 2);
 
-  const sameFile = fixture({ 'docs/specs/auth/password-reset.md': detailDoc('비밀번호 재설정', [], ['같은 이름', '같은 이름']) });
-  assert.equal(rulesNamed(check(sameFile).findings, 'duplicate-policy').length, 0);
+  // 한 파일 안의 중복은 두 번째부터의 제목마다 발견 하나이고, 메시지는 첫 줄을 가리킨다.
+  const sameFileText = detailDoc('비밀번호 재설정', [], ['같은 이름', '같은 이름', '같은 이름']);
+  const sameFile = fixture({ 'docs/specs/auth/password-reset.md': sameFileText });
+  const lines = sameFileText.split('\n');
+  const first = lines.indexOf('### 같은 이름') + 1;
+  const second = lines.indexOf('### 같은 이름', first) + 1;
+  const third = lines.lastIndexOf('### 같은 이름') + 1;
+  assert.deepEqual(rulesNamed(check(sameFile).findings, 'duplicate-policy').map((f) => [f.file, f.line, f.message]), [
+    ['docs/specs/auth/password-reset.md', second, `중복 정책 "같은 이름": 이 문서의 ${first}줄에 이미 있음`],
+    ['docs/specs/auth/password-reset.md', third, `중복 정책 "같은 이름": 이 문서의 ${first}줄에 이미 있음`],
+  ]);
 });
 
 test('20. open-question: 마커 둘이 있는 파일은 개수 2와 첫 마커 줄을 담은 경고 하나이고, 경고만 있으면 ok는 true이며 종료 코드는 0이다', () => {
@@ -243,13 +288,39 @@ test('20. open-question: 마커 둘이 있는 파일은 개수 2와 첫 마커 �
   const open = rulesNamed(report.findings, 'open-question');
   assert.equal(open.length, 1);
   assert.equal(open[0].severity, 'warning');
-  assert.equal(open[0].message, '미해결 질문 표시 2개');
+  assert.equal(open[0].message, '미해결 질문 2개');
   assert.equal(open[0].line, lineOf(loginWithMarkers, '[확인 필요]'));
 
   const root = makeRepo(files);
   const cli = runCli(['check'], root);
   assert.equal(cli.code, 0);
-  assert.ok(cli.stdout.includes('미해결 질문 표시 2개'));
+  assert.ok(cli.stdout.includes('미해결 질문 2개'));
+
+  // 확인 필요 사항 절의 마커가 있으면 정책 본문의 마커는 세지 않고, 첫 항목 줄을 가리킨다.
+  const withPolicyMarker = loginWithMarkers.replace('활동이 30일 동안 없으면 세션이 만료된다.\n', '활동이 30일 동안 없으면 세션이 만료된다.\n[확인 필요] 기간 확인\n');
+  const mixed = rulesNamed(check(fixture({ [LOGIN]: withPolicyMarker })).findings, 'open-question');
+  assert.deepEqual(mixed.map((f) => [f.message, f.line]), [['미해결 질문 2개', lineOf(withPolicyMarker, '- [확인 필요] 질문 A')]]);
+
+  // 확인 필요 사항 절에 항목이 없으면 정책 본문의 마커 수를 센다.
+  const bodyOnly = LOGIN_TEXT.replace('활동이 30일 동안 없으면 세션이 만료된다.\n', '활동이 30일 동안 없으면 세션이 만료된다.\n[확인 필요] 기간 확인\n');
+  const bodyFindings = rulesNamed(check(fixture({ [LOGIN]: bodyOnly })).findings, 'open-question');
+  assert.deepEqual(bodyFindings.map((f) => [f.message, f.line]), [['미해결 질문 1개', lineOf(bodyOnly, '[확인 필요] 기간 확인')]]);
+});
+
+test('20a. unterminated-comment: 닫히지 않은 주석이 시작한 줄에 오류 하나를 내고, 가려진 절의 missing-section은 그대로 두며, 코드 스팬 안의 <!--는 발견이 없다', () => {
+  const hidden = LOGIN_TEXT.replace('## 근거', '<!-- 열림\n## 근거');
+  const report = check(fixture({ [LOGIN]: hidden }));
+  assert.deepEqual(
+    rulesNamed(report.findings, 'unterminated-comment').map((f) => [f.file, f.line, f.severity]),
+    [[LOGIN, lineOf(hidden, '<!-- 열림'), 'error']],
+  );
+  assert.equal(report.ok, false);
+  assert.ok(rulesNamed(report.findings, 'missing-section').some((f) => f.file === LOGIN && f.message === '"## 근거" 절이 없음'));
+
+  const codeSpan = LOGIN_TEXT.replace('## 근거', '`<!--` 는 주석을 여는 표식이다.\n\n## 근거');
+  const clean = checkRepo(makeRepo(fixture({ [LOGIN]: codeSpan })));
+  assert.deepEqual(rulesNamed(clean.findings, 'unterminated-comment'), []);
+  assert.equal(clean.ok, true);
 });
 
 test('21. missing-title: 첫 제목이 H2인 파일과 제목이 없는 파일은 오류다', () => {
@@ -262,7 +333,7 @@ test('21. missing-title: 첫 제목이 H2인 파일과 제목이 없는 파일�
   const titles: Finding[] = rulesNamed(check(files).findings, 'missing-title');
   assert.deepEqual(titles.map((f) => f.file), ['docs/specs/auth/h2.md', 'docs/specs/auth/none.md']);
   assert.equal(titles[0].line, 1);
-  assert.equal(titles[1].line, undefined);
+  assert.equal(titles[1].line, 1, '제목이 없으면 1줄을 가리킨다');
   assert.equal(titles[0].message, '첫 제목은 H1이어야 함');
 });
 
@@ -279,7 +350,7 @@ test('22. index-missing: 인덱스가 없으면 발견은 하나뿐이고 종료
   assert.equal(cli.code, 1);
 });
 
-test('23. 정렬: 같은 파일의 발견은 줄 번호 오름차순이고 줄 없는 발견은 마지막이며, 전체 발견도 같은 순서를 따른다', () => {
+test('23. 정렬: 같은 파일의 발견은 줄 번호 오름차순이고, 전체 발견도 같은 순서를 따른다', () => {
   const sortDoc = Array.from({ length: 30 }, (_, i) => `줄 ${i + 1}`);
   sortDoc[0] = '# 정렬';
   sortDoc[4] = '[가](missing-a.md)';
@@ -289,7 +360,7 @@ test('23. 정렬: 같은 파일의 발견은 줄 번호 오름차순이고 줄 �
   const mine = report.findings.filter(
     (f) => f.file === 'docs/specs/auth/sort.md' && (f.rule === 'broken-link' || f.rule === 'unreachable'),
   );
-  assert.deepEqual(mine.map((f) => f.line ?? 'none'), [5, 30, 'none']);
+  assert.deepEqual(mine.map((f) => f.line), [1, 5, 30]);
 
   const keyOf = (f: Finding) => [f.file, f.line ?? Number.MAX_SAFE_INTEGER] as const;
   for (let i = 1; i < report.findings.length; i++) {
@@ -562,12 +633,12 @@ test('76. 영어 어휘: [needs confirmation]만 쓴 문서는 open-question 경
   const open = rulesNamed(checkRepo(makeRepo(englishFixture({ [LOGIN]: asked }))).findings, 'open-question');
   assert.deepEqual(
     open.map((finding) => finding.message),
-    ['1 open question marker(s)'],
+    ['1 open question(s)'],
   );
 
   const korean = LOGIN_EN.replace('A login starts a session.', 'A login starts a session.\n[확인 필요] 확인할 것');
   const both = rulesNamed(checkRepo(makeRepo(englishFixture({ [LOGIN]: korean }))).findings, 'open-question');
   assert.equal(both.length, 1);
-  assert.equal(both[0].message, '1 open question marker(s)');
+  assert.equal(both[0].message, '1 open question(s)');
 });
 

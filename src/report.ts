@@ -6,7 +6,7 @@ import type { Report } from './model.js';
 export function formatText(report: Report, lang: Lang): string {
   const lines = report.findings.map(
     (finding) =>
-      `${finding.file}${finding.line === undefined ? '' : `:${finding.line}`} ${finding.severity} ${finding.rule}: ${finding.message}`,
+      `${finding.file}:${finding.line} ${finding.severity} ${finding.rule}: ${finding.message}`,
   );
   if (lines.length > 0) lines.push('');
   const { documents, errors, warnings } = report.summary;

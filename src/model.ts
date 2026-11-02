@@ -29,6 +29,8 @@ export interface Link {
   kind: 'external' | 'internal';
   path?: string;
   fragment?: string;
+  // 링크 철자가 디스크의 파일과 다를 때 실제 파일의 저장소 루트 기준 경로다. path는 그 파일로 바뀐다.
+  spellingMismatch?: string;
 }
 
 export interface Section {
@@ -62,6 +64,8 @@ export interface SpecDoc {
   policies: PolicyTitle[];
   markerCount: number;
   firstMarkerLine?: number;
+  // 파일 끝까지 닫히지 않은 HTML 주석이 시작한 줄. 닫혀 있으면 undefined다.
+  unterminatedComment?: number;
   // 흐름 신호. behaviorBullets는 "현재 동작" 절 안의 불릿 줄 수이고, 그 절이 없으면 0이다.
   flow: { mermaidFences: number; tableRows: number; behaviorBullets: number };
   parent?: SpecDoc;
@@ -71,7 +75,8 @@ export interface Finding {
   rule: string;
   severity: 'error' | 'warning';
   file: string;
-  line?: number;
+  // 위치를 모르는 발견은 1줄을 가리킨다.
+  line: number;
   message: string;
 }
 
@@ -82,13 +87,12 @@ export interface Report {
   findings: Finding[];
 }
 
-// line이 없는 발견은 line 키 자체를 두지 않아 JSON에서도 빠진다.
 export function finding(
   rule: string,
   severity: Finding['severity'],
   file: string,
   message: string,
-  line?: number,
+  line = 1,
 ): Finding {
-  return line === undefined ? { rule, severity, file, message } : { rule, severity, file, line, message };
+  return { rule, severity, file, line, message };
 }

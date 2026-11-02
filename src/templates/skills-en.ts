@@ -32,8 +32,8 @@ Writes or updates a living spec document that explains one responsibility. The d
 1. Find the owning document. Go down from the index to the overview to the detail document. Find the document whose "Evidence" lists the changed code path with \`grep -rl '<path>' ${p.specDir}\`, and find the changed policy name with \`grep -rn '^### ' ${p.specDir}\`. If an API number or endpoint changed, also find the owning document under \`${p.specDir}/api/\`.
 2. If more than one document looks like the owner, stop and ask which one owns it. Do not write one policy in two documents.
 3. Rewrite "Current behavior" as the behavior after the change. Do not add historical narration such as "previously … now …", change dates, or requirement IDs. If the diagram or table under "Flow" holds that behavior, update it too.
-4. Under "Policies", edit the body of each changed policy, add a new policy as \`### policy name\`, and delete a policy that was removed. If a policy with the same name already exists in another document, that document owns it: edit it there and keep only a link in this document. A confirmed policy may end with one decision link, \`(decision: [YYYY-MM-DD](../${p.log}#<entry-anchor>))\`, after its last sentence. This is the only exception to the rule against change history. Do not write the reason or the source; the link text carries only the decision date. The entry anchor is the slug of the \`decision\` entry title (for \`## [2026-11-02] decision | Session lifetime: 30 days\` the slug is \`2026-11-02-decision-session-lifetime-30-days\`).
-5. Update the code and test paths under "Evidence" to match the changed code. Write each path as a backtick path relative to the repository root. If a line range is needed, append it like \`src/auth/session.ts:12-48\`. Attach only one range to each path; if one file has several ranges, list them on separate lines.
+4. Under "Policies", edit the body of each changed policy, add a new policy as \`### policy name\`, and delete a policy that was removed. If a policy with the same name already exists in another document, that document owns it: edit it there and keep only a link in this document. A confirmed policy may end with one decision link, \`(decision: [YYYY-MM-DD](../${p.log}#<entry-anchor>))\`, after its last sentence. This is the only exception to the rule against change history. Do not write the reason or the source; the link text carries only the decision date. The entry anchor is the slug of the \`decision\` entry title (format in step 1 of "Document existing code").
+5. Update the code and test paths under "Evidence" to match the changed code. Write each path as a backtick path relative to the repository root. If a line range is needed, append it like \`src/auth/session.ts:12-48\`. Attach only one range to each path; if one file has several ranges, list them on separate lines. A path must contain a "/"; write a repository-root file as \`./package.json\`.
 6. Do not describe a policy that code, tests, or material the user supplied does not confirm. Write it as \`[needs confirmation]\` and a question, in the format of step 5 of "Document existing code".
 7. Keep links in both directions. If you added a link to another detail document, add the link back under that document's "Related". If a document's title or scope changed, update its one-line entry in the overview's "Documents" and its line in the index.
 8. Add a log entry. The title is one sentence stating the user-visible result, not the task name. The body is written in the order \`Result:\`, \`Reason:\`, \`Document:\` and does not list files. If the same task touched several documents, group it into one entry per domain and give the count under \`Result:\`.
@@ -52,6 +52,7 @@ The only sources are code and tests. Do not read or copy other explanatory docum
    - If a domain directory has more than 15 detail documents, group the ones with close flows into subdirectories and put a \`${p.overview}\` in each subdirectory too (the check rules support nested overviews: the parent of a sub-overview is the upper overview).
    - Server API and SDK contracts (request and response fields, the meaning of response and error codes, retry, idempotency, authentication) are owned by \`${p.specDir}/api/<endpoint>.md\`, not by a screen document. \`api/\` is one domain with its own overview; if an API number exists, put it in the file name and the policy name. A screen document lists only the user-visible result for each code and links to the policy in that api/ document. Common transport contracts such as headers, authentication, cookies, and retries live once, in one detail document inside \`api/\`. Whenever a screen document cites an API number, check that the api/ document exists; if it does not, create it from the same template.
    - Concept pages. \`${p.specDir}/concepts/<concept>.md\` owns a concept when a flow in two or more domains uses the same rule or value table, when a code decision criterion (flag or enum) differs from the user's wording so that it has to be explained each time, or when flow documents use a concept as a branch axis (channel, member state, currency type). A term that has a definition but no rules does not get a page; keep it as one line under the overview's "Terms". If \`concepts/\` does not exist, create it like a domain and add \`- [Concepts](concepts/${p.overview}) — definitions and cross-cutting rules for concepts shared by several domains\` to the index.
+   - Decision link format (shared by every skill): a confirmed policy may end with \`(decision: [YYYY-MM-DD](../${p.log}#<slug>))\`. The slug is the entry heading text after "## ", lowercased, with punctuation other than "-" and "_" removed and each space replaced by "-"; for \`## [2026-11-02] decision | Session lifetime: 30 days\` it is \`2026-11-02-decision--session-lifetime-30-days\`.
 2. Start from the entry point (a route, handler, command, or screen), follow the calls while reading the code path, and check the expected behavior in the tests that cover the same path. Record only the paths that are the evidence for "Current behavior" or "Policies". Files from other areas that you read for context do not go into "Evidence".
 3. Place the file.
    - Domain directory \`${p.specDir}/<domain>/\`. If it does not exist, create it and copy \`${p.specDir}/templates/overview.md\` to make \`${p.overview}\`.
@@ -62,8 +63,8 @@ The only sources are code and tests. Do not read or copy other explanatory docum
    - "Current behavior": if there are three or more steps, give each step a \`### step name\` subheading and write bullets under it. Describe what the user experiences, in the present tense. Explain the result, not the code structure.
      - Do not drop values that carry conditions: if a width, size, or time has a branch condition (for example, if the card width is narrower than 220, the cards stack vertically and the inner margin shrinks), write the condition and the result together. Write every branch that splits by channel, platform, permission, or login state (for example, channels A and B always, iOS only inside the review build, channel C does not show it). Values that only decorate without a condition, such as colors, fixed margins, or animations, may be omitted.
      - Sentence rules: one rule per bullet, one condition and one result per sentence. Put the default behavior first and the exceptions and branches after it. Within a sentence, put the condition first (for example, if the user is not logged in, show the guidance screen).
-     - Wording rules: write screen text exactly as it appears, inside quotation marks. Do not alternate between two names for the same thing; use one name throughout the document. Spell out a term in parentheses once, at its first use. For a concept that has its own page, link it at first use, as in \`[Channel](../concepts/channel.md)\`, do not define it again, and use the value names from that page exactly in the rows of branch tables.
-     - Style: the body is declarative sentences, and each bullet is a complete sentence. Do not mix styles. Keep the subject as the actor (user, app, server, SDK). Do not use passive voice or translated phrasing such as "is made to be ...", double negatives, or future-tense narration such as "soon", "planned", or "going forward".
+     - Wording rules: write screen text exactly as it appears, inside quotation marks. Do not alternate between two names for the same thing; use one name throughout the document. Expand an abbreviation or alias once, in parentheses, at its first use. For a concept that has its own page, link it at first use, as in \`[Channel](../concepts/channel.md)\`, do not define it again, and use the value names from that page exactly in the rows of branch tables.
+     - Style: the body is declarative sentences, and each bullet is a complete sentence. Do not mix styles. Keep the subject as the actor (user, app, server, SDK). When the actor is known, do not use the passive voice. Do not use double negatives or future-tense narration such as "soon", "planned", or "going forward".
      - Quantities and filler: write quantities as numbers with "or more", "or less", "more than", or "fewer than"; do not write "many", "etc.", or "other". Remove words that add no meaning, such as "simply", "easily", or "note that".
      - Subheadings: a \`###\` is a noun phrase naming a user action or result. Do not use generic names such as "Other" or "Note", or directional phrases such as "above" or "below". Do not use the same subheading twice in one document.
      - If a bullet has more than three sentences, or a list inside one bullet has more than four items, split it into bullets or \`###\` subheadings.
@@ -77,7 +78,7 @@ The only sources are code and tests. Do not read or copy other explanatory docum
      - Code structure and call order are not rules. What the user sees on screen, such as layout, goes into "Current behavior"; implementation structure goes into the explanation under "Evidence". Write numbers, deadlines, and conditions exactly as read from the code.
      - A rule that exists only in code and has no tests is written as in step 5. When the tests confirm only part of a rule, split it into a confirmed policy for the confirmed part and a question policy for the rest.
      - A policy name must be unique across the repository (the \`duplicate-policy\` check). If the same name might appear in another domain, put the subject in the name (for example, "Email signup expiry notice", not "Expiry notice"). The name must read correctly without context and must not be a question.
-   - "Evidence": list the code and test paths you read as backtick paths, and after \` — \` write what that path implements. Do not use backticks in the explanation (identifiers such as \`Cart.add\` are also checked as paths).
+   - "Evidence": list the code and test paths you read as backtick paths that contain a "/", and after \` — \` write what that path implements. Do not put identifiers in backticks in the explanation; \`check\` ignores spans without a "/", but identifiers belong in plain text.
    - "Open questions": every question that the code and tests do not answer. The format is in step 5.
    - "Related": one link to the overview, and the other detail documents that share the same flow.
 5. Write any unconfirmed policy as a question, not as a statement. If a branch exists but you cannot tell why, there is no test, or you do not know the basis of a constant, write \`### policy name\` (the heading is the policy name, not a question), then under it write in the first paragraph the current behavior you read in the code as declarative sentences, using several sentences if needed so that no condition, number, or branch result is lost (one paragraph). On the next line write \`[needs confirmation] <question>\`. Ask about what you do not know, as is (for example: is this intended, and if not, what should it be? / what is the basis of this constant? / which is right, the comment or the code?). Do not turn a question about basis or alternatives into a question about intent. This description is an observation, not a confirmed fact, so never leave it without the marker line. Under "Open questions" put \`- [needs confirmation] [policy name](#policy-name) — <same question>\` (the link is checked by the broken-anchor rule of \`check\`). Do not invent a plausible value or intent.
@@ -99,7 +100,7 @@ The only sources are code and tests. Do not read or copy other explanatory docum
 
 ## Before finishing
 
-1. Run \`npx crumbs-spec check\` and fix every error. A \`open-question\` warning is the result of leaving questions, so leave it as is. A \`missing-flow\` warning means "Current behavior" has six or more steps but neither a diagram nor a table, so remove it by filling in "Flow". A \`section-order\` warning means the section order differs from the template, so remove it by moving the sections.
+1. Run \`npx crumbs-spec check\` and fix every error. An \`open-question\` warning means the document still has open questions; leave it as is. A \`missing-flow\` warning means "Current behavior" has six or more steps but neither a diagram nor a table, so remove it by filling in "Flow". A \`section-order\` warning means the section order differs from the template, so remove it by moving the sections.
 2. Review again: every policy you added or changed is traceable to a path under "Evidence" or is a \`[needs confirmation]\` question; every rule verified by the tests named under "Evidence" appears in some \`###\` policy; and every branch in the code you read that splits by channel, platform, permission, or login state appears in some sentence of "Current behavior".
 3. Confirm that the log entry was added with \`grep '^## \\[' ${p.specDir}/${p.log} | tail -3\`.
 `;
@@ -131,7 +132,7 @@ Finds an answer in the spec documents and answers with the source attached. As s
 - If neither the documents nor the code contain it, answer "None". Do not invent a plausible answer.
 - Give the answer first and the source after it. For one policy, use one paragraph of five sentences or fewer; for several policies, one bullet per policy; if there are two or more comparison axes, answer in a table.
 - Answer with the document's standard term. If the asker used a different expression, connect the two once in parentheses in the first sentence (for example, Points (miles)). Spell out abbreviations at their first use.
-- Do not rely on the conversation's position, such as "as mentioned above" or "the document below"; point to the path every time.
+- Do not refer to earlier turns ("as mentioned above", "the document below"); point to the path every time.
 
 ## Feedback (write the answer back into the document)
 
@@ -168,7 +169,7 @@ description: Before writing or changing a crumbs spec document, lists every poli
 
 # crumbs-interview
 
-Reveal what is unknown before writing a document. Do not describe unconfirmed policies; leave them as questions, and do not start writing that changes scope until the answers arrive.
+Surface what is unknown before a document is written. Do not describe unconfirmed policies; leave them as questions, and do not start writing that changes scope until the answers arrive.
 
 ## Procedure
 
@@ -200,7 +201,7 @@ Write the question list in the same format as the "Open questions" section so th
 - [needs confirmation] Session expiry notice — Is the user warned before the session expires, and if so, how many days before? (owner: auth/login.md, new)
 \`\`\`
 
-This format matches the \`open-question\` count of \`crumbs check\`. When it is copied into a document, the number of questions is counted as is.
+Each question becomes one line of the document's "Open questions" section; \`crumbs check\` reports one \`open-question\` warning per document that still has questions.
 
 ## Criteria for choosing questions
 
@@ -211,12 +212,12 @@ This format matches the \`open-question\` count of \`crumbs check\`. When it is 
 ## Do not
 
 - This skill does not change documents. It outputs only the table and the questions.
-- Do not leave a log entry. crumbs-writer records the answers in the log as it reflects them. When a question is confirmed, leave a \`decision\` entry whose body is written in the order \`Result:\`, \`Reason:\`, \`Document:\`.
+- Do not leave a log entry. crumbs-writer records the answers as it reflects them, including the \`decision\` entry (body in the order \`Result:\`, \`Reason:\`, \`Document:\`) and the decision link at the end of the confirmed policy (format in step 1 of crumbs-writer "Document existing code").
 - Do not put a default value into an unconfirmed policy and propose fixing it later.
 
 ## Before finishing
 
-If you did not change any document, there is nothing to run. If the user told you to proceed with the marks left in place and you wrote the document, run \`npx crumbs-spec check\` and fix every error. When a question policy is confirmed, leave a \`decision\` entry, and put a decision link at the end of the confirmed policy text.
+If you did not change any document, there is nothing to run. If the user told you to proceed with the marks left in place and you wrote the document, run \`npx crumbs-spec check\` and fix every error. When a question policy is confirmed, crumbs-writer leaves the \`decision\` entry and the decision link.
 `;
 
 const ingest = (p: TemplatePaths): string => `---
@@ -226,7 +227,7 @@ description: Reads newly placed source material under ${p.rawDir}/ (contracts, p
 
 # crumbs-ingest
 
-Reflects one source material file in the spec documents. The material is read only and is never edited. Show what will change and get confirmation before changing any document. Process one file at a time.
+Applies one source file to the spec documents. The material is read only and is never edited. Show what will change and get confirmation before changing any document. Process one file at a time.
 
 ## Procedure
 
@@ -239,7 +240,7 @@ Reflects one source material file in the spec documents. The material is read on
    - From the "Related" section of each document you found, check one more step for documents the change carries to.
 4. Make the change list and show it. For each item, give the owning document, the section ("Current behavior" or \`### policy name\`), the current wording → the wording the material implies, and the part of the material that is the evidence. If the material conflicts with a current document, mark it as a conflict and ask which is right. If the material states a new policy that no document has, mark it "new" and propose which document should own it.
 5. Wait for confirmation. Do not change documents without it. If only some items are approved, reflect only the approved items.
-6. Update the owning documents. Edit only one owning document per policy; in other documents keep only a link to that policy. When a question policy is confirmed, leave a \`decision\` entry and put a decision link at the end of the confirmed policy text. If the material confirms a value, write it as a statement; if the material is ambiguous, write it as a \`[needs confirmation]\` question (format in step 5 of crumbs-writer "Document existing code"). Cite the material in "Evidence" as a backtick path (\`${p.rawDir}/<file>\` — \`check\` confirms that it exists). If you need to point to a specific part of the material, give the page or section after \` — \`.
+6. Update the owning documents. Edit only one owning document per policy; in other documents keep only a link to that policy. When a question policy is confirmed, leave a \`decision\` entry and put a decision link at the end of the confirmed policy text (format in step 1 of crumbs-writer "Document existing code"). If the material confirms a value, write it as a statement; if the material is ambiguous, write it as a \`[needs confirmation]\` question (format in step 5 of crumbs-writer "Document existing code"). Cite the material in "Evidence" as a backtick path (\`${p.rawDir}/<file>\` — \`check\` confirms that it exists). If you need to point to a specific part of the material, give the page or section after \` — \`.
 7. If the scope changed, update the one-line entry in the overview's "Documents" and in the index. If you created a new document, follow steps 3 to 6 of crumbs-writer "Document existing code": start from the template and link it from the overview and the index.
 8. Add a log entry. Name the material file and the changed document in the body.
    \`npx crumbs-spec log add --kind ingest "<one sentence stating the user-visible result>" --body "Result: <changed user-visible result>. Reason: ${p.rawDir}/<file>. Document: [<policy name>](<domain>/<document>.md#<anchor>)"\`

@@ -79,6 +79,30 @@ test('45. log-format 실패: 어긋난 H2마다 오류 하나이고 줄과 메�
   assert.ok(report.findings.some((f) => f.rule === 'log-format'));
 });
 
+// 오늘부터 days일 뒤의 로컬 날짜(YYYY-MM-DD)다.
+function dateAfter(days: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  const pad = (n: number): string => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+test('47a. log-format 미래 날짜: 내일까지는 받아들이고, 모레부터는 날짜 오류 하나이다', () => {
+  const tomorrow = logWith([`[${dateAfter(1)}] change | 내일`]);
+  assert.deepEqual(rulesNamed(checkRepo(makeRepo(tomorrow)).findings, 'log-format'), []);
+
+  const files = logWith([`[${dateAfter(2)}] change | 모레`]);
+  assert.deepEqual(rulesNamed(checkRepo(makeRepo(files)).findings, 'log-format'), [
+    {
+      rule: 'log-format',
+      severity: 'error',
+      file: LOG,
+      line: lineOf(files[LOG], `[${dateAfter(2)}]`),
+      message: `날짜가 미래임: ${dateAfter(2)}`,
+    },
+  ]);
+});
+
 test('46. 대상 한정: 상세 문서의 H2, 하위 디렉터리의 log.md, 설정으로 바꾼 로그 이름이 대상을 정하고, 로그 문서가 없으면 두 규칙 모두 발견이 없다', () => {
   const inDetail = checkRepo(
     makeRepo({ ...baseGraph(), [LOGIN]: `${baseGraph()[LOGIN]}\n## 2026-10-31 ingest\n항목.\n` }),
@@ -154,9 +178,13 @@ test('62. log-body: decision 항목은 본문에 내부 링크가 없으면 제�
       severity: 'warning',
       file: LOG,
       line: lineOf(bare, '## [2026-10-31] decision'),
-      message: '결정 항목에 문서 링크가 없음',
+      message: '결정 항목에 문서 링크가 없음 (형식: 문서: [정책](domain/file.md#앵커))',
     },
   ]);
+
+  // 같은 로그 안을 가리키는 #앵커 링크는 문서 링크가 아니다.
+  const selfAnchor = '# 스펙 로그\n\n## [2026-10-31] decision | 세션 유효 기간\n결과: 30일. [자기](#세션-유효-기간)\n';
+  assert.equal(rulesNamed(checkRepo(makeRepo({ ...baseGraph(), [LOG]: selfAnchor })).findings, 'log-body').length, 1);
 
   // 링크는 항목 본문 안에 있어야 한다. 제목 줄의 링크나 다음 항목의 링크는 이 항목의 본문이 아니다.
   const onlyNext = '# 스펙 로그\n\n## [2026-10-31] decision | 세션 유효 기간\n결과: 30일.\n\n## [2026-10-31] change | 다음\n[로그인](auth/login.md)\n';

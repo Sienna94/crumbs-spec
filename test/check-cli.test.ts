@@ -35,7 +35,7 @@ test('25. 깨진 픽스처: 종료 1이고 발견 줄은 "경로[:줄] 심각도
   const findingLines = result.stdout.split('\n').filter((line) => line !== '' && !line.startsWith('crumbs check:'));
   assert.ok(findingLines.length >= 1);
   for (const line of findingLines) {
-    assert.match(line, /^docs\/specs\/.+?(:\d+)? (error|warning) [a-z-]+: .+$/);
+    assert.match(line, /^docs\/specs\/.+?:\d+ (error|warning) [a-z-]+: .+$/);
   }
   assert.ok(result.stdout.endsWith('crumbs check: 문서 4개, 오류 1개, 경고 0개\n'));
 });
@@ -64,7 +64,7 @@ test('27. 명령줄 오류: 설정 없음은 init 안내와 함께 종료 2, 알
   const empty = tempDir();
   const noConfig = runCli(['check'], empty);
   assert.equal(noConfig.code, 2);
-  assert.ok(noConfig.stderr.includes('crumbs init'));
+  assert.ok(noConfig.stderr.includes('npx crumbs-spec init'));
 
   const root = makeRepo(baseGraph());
   const unknownCommand = runCli(['--lang', 'ko', 'frobnicate'], root);
@@ -84,6 +84,7 @@ test('27. 명령줄 오류: 설정 없음은 init 안내와 함께 종료 2, 알
   assert.equal(help.code, 0);
   assert.ok(help.stdout.includes('명령'));
   assert.ok(help.stdout.includes('check 옵션'));
+  assert.ok(help.stdout.includes('exclude 항목은 스펙 루트 기준 경로이며'));
 });
 
 test('28. --root <dir>: 다른 작업 디렉터리에서도 지정한 저장소를 검사한다', () => {

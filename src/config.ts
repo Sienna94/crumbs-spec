@@ -14,6 +14,18 @@ function normRel(path: string): string {
   return posix.normalize(path).replace(/\/+$/, '') || '.';
 }
 
+// 저장소 루트 밖을 가리키는 값(.., 절대 경로, 드라이브 문자)인지 본다.
+function isOutsideRoot(rel: string): boolean {
+  return rel === '..' || rel.startsWith('../') || posix.isAbsolute(rel) || /^[A-Za-z]:/.test(rel);
+}
+
+// exclude 항목을 스펙 루트 기준 정규화 경로로 만든다. 끝의 "/"는 디렉터리 항목이라는 뜻이므로 남긴다.
+function normExclude(m: Messages, entry: string): string {
+  const path = posix.normalize(entry).replace(/^(\.\/)+/, '');
+  if (path === '' || path === '.' || isOutsideRoot(path)) fail(m, 'exclude', m.reasonRelativePath);
+  return path;
+}
+
 export function defaultConfig(specDir?: string, lang: Lang = 'en'): Config {
   return {
     version: 1,
@@ -65,6 +77,7 @@ function validate(raw: unknown, fallback: Lang): Config {
 
   const specDir = normRel(optString(m, raw, 'specDir', 'docs/specs'));
   if (specDir === '.') fail(m, 'specDir', m.reasonDot);
+  if (isOutsideRoot(specDir)) fail(m, 'specDir', m.reasonInsideRoot);
 
   const index = optString(m, raw, 'index', 'index.md');
   const overview = optString(m, raw, 'overview', 'overview.md');
@@ -90,13 +103,14 @@ function validate(raw: unknown, fallback: Lang): Config {
     if (!Array.isArray(value) || !value.every((item) => typeof item === 'string')) {
       fail(m, 'exclude', m.reasonStringArray);
     }
-    exclude = value as string[];
+    exclude = value.map((entry) => normExclude(m, entry));
   }
 
   const codeRoot = optString(m, raw, 'codeRoot', '.');
 
   const rawDir = normRel(optString(m, raw, 'rawDir', 'docs/raw'));
   if (rawDir === '.') fail(m, 'rawDir', m.reasonDot);
+  if (isOutsideRoot(rawDir)) fail(m, 'rawDir', m.reasonInsideRoot);
   if (rawDir === specDir || rawDir.startsWith(`${specDir}/`)) fail(m, 'rawDir', m.reasonInsideSpec);
 
   return {

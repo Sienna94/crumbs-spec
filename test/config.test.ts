@@ -36,14 +36,14 @@ test('8. 설정 오류: 파일 없음, JSON 오류, 알 수 없는 키, 잘못�
   const empty = tempDir();
   assert.throws(
     () => loadConfig(join(empty, 'crumbs.json'), empty),
-    (error: unknown) => error instanceof ConfigError && error.message.includes('crumbs init'),
+    (error: unknown) => error instanceof ConfigError && error.message.includes('npx crumbs-spec init'),
   );
   assert.ok(messageOf('{').startsWith('crumbs.json: '));
   assert.equal(messageOf('{"version":1,"foo":1}'), 'crumbs.json: unknown key "foo"');
   assert.equal(messageOf('{"version":2}'), 'crumbs.json: "version" has an invalid value: only 1 is allowed');
   assert.equal(
     messageOf('{"version":1,"headings":{"nope":"x"}}'),
-    'crumbs.json: "headings" has an invalid value: unknown heading key "nope"',
+    'crumbs.json: "headings" has an invalid value: unknown heading key "nope" (valid: purpose, behavior, flow, policies, evidence, questions, documents, terms, related)',
   );
   assert.equal(
     messageOf('{"version":1,"specDir":"."}'),
@@ -53,6 +53,26 @@ test('8. 설정 오류: 파일 없음, JSON 오류, 알 수 없는 키, 잘못�
     messageOf('{"version":1,"rawDir":"docs/specs/raw"}'),
     'crumbs.json: "rawDir" has an invalid value: cannot be inside specDir',
   );
+});
+
+test('8a. 설정 경로: specDir·rawDir는 저장소 루트 밖이나 절대 경로면 거부하고, exclude는 스펙 루트 기준 상대 경로만 받으며 정규화한다', () => {
+  assert.equal(
+    messageOf('{"version":1,"specDir":"../docs"}'),
+    'crumbs.json: "specDir" has an invalid value: must stay inside the repository root',
+  );
+  assert.equal(
+    messageOf('{"version":1,"rawDir":"/tmp/raw"}'),
+    'crumbs.json: "rawDir" has an invalid value: must stay inside the repository root',
+  );
+  assert.equal(
+    messageOf('{"version":1,"exclude":["../x"]}'),
+    'crumbs.json: "exclude" has an invalid value: must be a path relative to the spec root',
+  );
+  assert.equal(
+    messageOf('{"version":1,"exclude":[""]}'),
+    'crumbs.json: "exclude" has an invalid value: must be a path relative to the spec root',
+  );
+  assert.deepEqual(parseConfig('{"version":1,"exclude":["./adr/","adr","adr/x/"]}').exclude, ['adr/', 'adr', 'adr/x/']);
 });
 
 test('70. lang: 기본값은 en이고 en과 ko만 받으며, 다른 값은 12.2의 문구로 거부한다', () => {

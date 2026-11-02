@@ -8,7 +8,17 @@ export function brokenLink(graph: Graph): Finding[] {
   for (const doc of graph.docs) {
     for (const link of doc.links) {
       if (link.kind !== 'internal' || link.path === undefined) continue;
-      if (!isFile(link.path)) {
+      if (link.spellingMismatch !== undefined) {
+        out.push(
+          finding(
+            'broken-link',
+            'error',
+            doc.file,
+            MESSAGES[graph.lang].spellingMismatch(link.rawTarget, link.spellingMismatch),
+            link.line,
+          ),
+        );
+      } else if (!isFile(link.path)) {
         out.push(finding('broken-link', 'error', doc.file, MESSAGES[graph.lang].linkMissing(link.rawTarget), link.line));
       }
     }

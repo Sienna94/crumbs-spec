@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { symlinkSync } from 'node:fs';
+import { join } from 'node:path';
 import { after, test } from 'node:test';
 import { DEFAULT_CONFIG, baseGraph, cleanup, graphOf, makeRepo } from './helpers.js';
 
@@ -45,6 +47,39 @@ test('11. 부모 결정: 같은 디렉터리 개요, 조상 개요, 인덱스, �
   assert.equal(byFile.get('docs/specs/billing/refund.md')?.parent?.file, 'docs/specs/index.md');
   // 중첩 개요의 부모는 바깥 개요다.
   assert.equal(byFile.get('docs/specs/auth/sub/overview.md')?.parent?.file, 'docs/specs/auth/overview.md');
+});
+
+// exclude 목록만 바꾼 저장소에서 문서 파일 목록을 얻는다. adr과 adr-old 디렉터리, templates 디렉터리가 있다.
+function docsWithExclude(exclude: string[]): string[] {
+  const root = makeRepo({
+    ...baseGraph(),
+    'crumbs.json': `${JSON.stringify({ ...DEFAULT_CONFIG, exclude }, null, 2)}\n`,
+    'docs/specs/adr/x.md': '# 결정\n',
+    'docs/specs/adr-old/x.md': '# 옛 결정\n',
+    'docs/specs/templates/detail.md': '# 템플릿\n',
+  });
+  return graphOf(root).docs.map((doc) => doc.file);
+}
+
+test('12a. exclude 정규화: "./adr/", "adr", "adr/"은 adr 아래를 빼고 adr-old는 빼지 않으며, "templates"는 templates 아래를 뺀다', () => {
+  for (const entry of ['./adr/', 'adr', 'adr/']) {
+    const files = docsWithExclude([entry]);
+    assert.ok(!files.includes('docs/specs/adr/x.md'), `${entry}는 adr 아래를 뺀다`);
+    assert.ok(files.includes('docs/specs/adr-old/x.md'), `${entry}는 adr-old를 빼지 않는다`);
+  }
+  assert.ok(!docsWithExclude(['templates']).includes('docs/specs/templates/detail.md'));
+});
+
+test('12b. 심볼릭 링크: 가리키는 .md 파일은 문서로 세고, 디렉터리 링크는 따라가며, 자기 자신을 가리키는 디렉터리 링크에서는 순환하지 않는다', () => {
+  const root = makeRepo({ ...baseGraph(), 'shared/notes/n.md': '# 공유 메모\n' });
+  const specDir = join(root, 'docs/specs');
+  symlinkSync(join(specDir, 'auth/login.md'), join(specDir, 'linked.md'));
+  symlinkSync(join(root, 'shared/notes'), join(specDir, 'extra'));
+  symlinkSync(specDir, join(specDir, 'loop'));
+  const files = graphOf(root).docs.map((doc) => doc.file);
+  assert.ok(files.includes('docs/specs/linked.md'), '파일 링크');
+  assert.ok(files.includes('docs/specs/extra/n.md'), '디렉터리 링크');
+  assert.ok(!files.some((file) => file.startsWith('docs/specs/loop/')), '순환 링크는 다시 들어가지 않는다');
 });
 
 test('12. 탐색: exclude 접두사, 점 디렉터리, node_modules, .md가 아닌 파일을 무시한다', () => {

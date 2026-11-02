@@ -13,7 +13,7 @@ document covers one area of the system, and each detail document owns one respon
 <!-- One line per domain: - [Domain name](domain/${p.overview}) — one-line scope -->
 
 ## Records
-- [Log](${p.log}) — read this index first; after reflecting source material or changing a document, add a log entry
+- [Log](${p.log}) — what was done to the documents, newest last; add an entry after applying source material or changing a document
 `,
 
   overview: (p: TemplatePaths): string => `# <Domain name>
@@ -23,7 +23,7 @@ document covers one area of the system, and each detail document owns one respon
 <The responsibility this area owns and what it does not cover, in one paragraph>
 
 ## Flow
-<One Mermaid flowchart with one node per detail document. Arrows follow the order the user experiences. If there is only one document, "None">
+<One Mermaid flowchart with one node per detail document. Arrows follow the order the user experiences. If there is only one document, write "None">
 
 ## Documents
 - [<detail document title>](<file>.md) — <one-line responsibility>
@@ -47,7 +47,7 @@ document covers one area of the system, and each detail document owns one respon
 
 ## Flow
 <If current behavior has two or more steps, one Mermaid diagram (flowchart; use stateDiagram-v2 for screen or state transitions).
-A branch with two or more comparison axes, such as channel or state, goes in a table. If there is only one step, "None">
+A branch with two or more comparison axes, such as channel or state, goes in a table. If there is only one step, write "None">
 
 ## Policies
 ### <policy name>
@@ -55,7 +55,7 @@ A branch with two or more comparison axes, such as channel or state, goes in a t
 then write [needs confirmation] and the question on the next line>
 
 ## Evidence
-- \`<path/to/file.ext>\` — <what it implements>
+- \`<path/to/file.ext>\` — <what it implements> (the path must contain a "/"; write a root file as ./file)
 
 ## Open questions
 - [needs confirmation] [<policy name>](#<policy-anchor>) — <question that would change behavior or scope>
@@ -67,7 +67,7 @@ then write [needs confirmation] and the question on the next line>
   log: (today: string): string => `# Spec log
 
 A chronological record of what was done to the documents. The newest entry comes last.
-Entry heading: \`## [YYYY-MM-DD] kind | title\`, kind ∈ ingest | query | lint | drift | change | decision.
+Entry heading: \`## [YYYY-MM-DD] kind | title\`; kind is one of ingest, query, lint, drift, change, decision.
 
 ## [${today}] change | crumbs-spec initialized
 `,

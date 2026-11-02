@@ -13,7 +13,10 @@ export function missingBacklink(graph: Graph): Finding[] {
     if (parent === undefined) continue;
     const linksToParent = doc.links.some((link) => link.kind === 'internal' && link.path === parent.abs);
     if (!linksToParent) {
-      out.push(finding('missing-backlink', 'error', doc.file, MESSAGES[graph.lang].backlinkMissing(parent.file)));
+      // 발견의 줄은 관련 문서 절의 제목 줄이고, 그 절이 없으면 제목 줄, 그것도 없으면 1줄이다.
+      const related = doc.sections.find((section) => section.key === 'related');
+      const line = related?.heading.line ?? doc.title?.line ?? 1;
+      out.push(finding('missing-backlink', 'error', doc.file, MESSAGES[graph.lang].backlinkMissing(parent.file), line));
     }
   }
 

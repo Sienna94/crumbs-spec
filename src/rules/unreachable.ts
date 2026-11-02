@@ -21,5 +21,7 @@ export function unreachable(graph: Graph): Finding[] {
   const indexPath = relPath(graph.root, graph.indexAbs);
   return graph.docs
     .filter((doc) => !seen.has(doc))
-    .map((doc) => finding('unreachable', 'error', doc.file, MESSAGES[graph.lang].unreachable(indexPath)));
+    .map((doc) =>
+      finding('unreachable', 'error', doc.file, MESSAGES[graph.lang].unreachable(indexPath), doc.title?.line ?? 1),
+    );
 }

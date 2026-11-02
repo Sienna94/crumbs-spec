@@ -37,7 +37,8 @@ test('29. 빈 디렉터리 init: 일곱 파일을 만들고, 이어서 check는 
   const root = tempDir();
   const init = runCli(['init', '--lang', 'ko'], root);
   assert.equal(init.code, 0);
-  assert.ok(init.stdout.includes('다음: crumbs check'));
+  assert.ok(init.stdout.includes('생성: AGENTS.md\n'));
+  assert.ok(init.stdout.endsWith('다음: npx crumbs-spec check\n'));
   for (const rel of SEVEN_FILES) {
     assert.ok(existsSync(join(root, rel)), `있어야 함: ${rel}`);
   }
@@ -85,6 +86,7 @@ test('31. 두 번째 실행: 아무것도 덮어쓰지 않고, 기존 파일마�
   for (const rel of SEVEN_FILES.filter((rel) => rel !== 'AGENTS.md')) {
     assert.ok(second.stdout.includes(`이미 있음, 건너뜀: ${rel}`), `건너뜀 출력: ${rel}`);
   }
+  assert.ok(second.stdout.includes('이미 있음, 건너뜀: AGENTS.md\n'), '내용이 같은 AGENTS.md는 건너뜀');
   for (const rel of SEVEN_FILES) {
     assert.ok(before.get(rel)?.equals(readFileSync(join(root, rel))), `바이트가 같아야 함: ${rel}`);
   }
@@ -111,7 +113,12 @@ test('32. 표시가 없는 기존 AGENTS.md: 원래 내용이 위에 보존되�
   assert.equal(count(agents, START), 1);
 });
 
-test('33. CLAUDE.md: @AGENTS.md가 없으면 안내만 출력하고, 있으면 안내가 없으며, CLAUDE.md는 절대 고치지 않는다', () => {
+test('33. CLAUDE.md: 없거나 @AGENTS.md가 없으면 안내만 출력하고, 있으면 안내가 없으며, CLAUDE.md는 절대 고치지 않는다', () => {
+  const noClaude = tempDir();
+  const absent = runCli(['init', '--lang', 'ko'], noClaude);
+  assert.ok(absent.stdout.includes('안내: Claude Code가 crumbs 규칙을 읽도록 CLAUDE.md에 "@AGENTS.md"를 추가하세요'));
+  assert.ok(!existsSync(join(noClaude, 'CLAUDE.md')), '안내만 하고 CLAUDE.md를 만들지 않는다');
+
   const withoutImport = tempDir();
   const claudeText = '# 프로젝트 지침\n';
   writeFileSync(join(withoutImport, 'CLAUDE.md'), claudeText);
@@ -125,6 +132,14 @@ test('33. CLAUDE.md: @AGENTS.md가 없으면 안내만 출력하고, 있으면 �
   const second = runCli(['init', '--lang', 'ko'], withImport);
   assert.ok(!second.stdout.includes('안내:'));
   assert.equal(readFileSync(join(withImport, 'CLAUDE.md'), 'utf8'), claudeWithImport);
+});
+
+test('34a. 없는 저장소 루트: init은 디렉터리를 만들지 않고 설정 오류로 종료 2이다', () => {
+  const missing = join(tempDir(), 'missing');
+  const result = runCli(['init', '--root', missing], tempDir());
+  assert.equal(result.code, 2);
+  assert.ok(result.stderr.includes(`root directory not found: ${missing}`), result.stderr);
+  assert.ok(!existsSync(missing));
 });
 
 test('34. 기존 crumbs.json: --spec-dir는 무시하고 참고를 출력하며, lang이 en이나 ko가 아니면 init은 설정 오류로 종료 2', () => {
@@ -159,7 +174,8 @@ test('72. 기본 init은 영어: 템플릿과 AGENTS 블록이 영어이고, 설
   const init = runCli(['init'], root);
   assert.equal(init.code, 0);
   assert.ok(init.stdout.includes('created: crumbs.json\n'));
-  assert.ok(init.stdout.endsWith('next: crumbs check\n'));
+  assert.ok(init.stdout.includes('created: AGENTS.md\n'));
+  assert.ok(init.stdout.endsWith('next: npx crumbs-spec check\n'));
   assert.ok(!/[가-힣]/.test(init.stdout), '출력에 한국어가 없어야 함');
 
   const config = JSON.parse(readFileSync(join(root, 'crumbs.json'), 'utf8')) as { lang: string };

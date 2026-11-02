@@ -15,23 +15,25 @@ import { missingSection } from './rules/missing-section.js';
 import { openQuestion } from './rules/open-question.js';
 import { sectionOrder } from './rules/section-order.js';
 import { unreachable } from './rules/unreachable.js';
+import { unterminatedComment } from './rules/unterminated-comment.js';
 import { finding, type Config, type Finding, type Report } from './model.js';
 
-// 모든 문서는 첫 제목이 H1이어야 한다.
+// 모든 문서는 첫 제목이 H1이어야 한다. 제목이 없는 문서는 1줄을 가리킨다.
 function missingTitle(graph: Graph): Finding[] {
   return graph.docs
     .filter((doc) => doc.headings[0]?.level !== 1)
-    .map((doc) => finding('missing-title', 'error', doc.file, MESSAGES[graph.lang].h1Title, doc.headings[0]?.line));
+    .map((doc) => finding('missing-title', 'error', doc.file, MESSAGES[graph.lang].h1Title, doc.headings[0]?.line ?? 1));
 }
 
 function checkGraph(graph: Graph): Finding[] {
   if (graph.index === undefined) {
     const indexPath = relPath(graph.root, graph.indexAbs);
     // 인덱스가 없으면 다른 규칙은 돌리지 않는다.
-    return [finding('index-missing', 'error', indexPath, MESSAGES[graph.lang].indexMissing(indexPath))];
+    return [finding('index-missing', 'error', indexPath, MESSAGES[graph.lang].indexMissing(indexPath), 1)];
   }
   return [
     ...missingTitle(graph),
+    ...unterminatedComment(graph),
     ...brokenLink(graph),
     ...brokenAnchor(graph),
     ...unreachable(graph),
@@ -50,12 +52,12 @@ function checkGraph(graph: Graph): Finding[] {
 
 const compareText = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
 
-// file, line(없는 것은 마지막), rule, message 순으로 정렬한다.
+// file, line, rule, message 순으로 정렬한다.
 function sortFindings(findings: Finding[]): Finding[] {
   return [...findings].sort(
     (a, b) =>
       compareText(a.file, b.file) ||
-      (a.line ?? Number.MAX_SAFE_INTEGER) - (b.line ?? Number.MAX_SAFE_INTEGER) ||
+      a.line - b.line ||
       compareText(a.rule, b.rule) ||
       compareText(a.message, b.message),
   );

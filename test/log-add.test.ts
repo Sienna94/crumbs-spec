@@ -117,6 +117,8 @@ test('40. 오류: 6.4.2 표의 조건마다 종료 2와 정해진 메시지를 �
     [['log', 'add', '--kind', 'change', '   '], '제목이 비어 있음', true],
     [['log', 'add', '--kind', 'change', 'a\nb'], '제목에 줄바꿈을 넣을 수 없음', true],
     [['log', 'add', '--kind', 'change', 'x', '--body', '본문\n## 가짜 제목'], '본문에 제목 줄(#)을 넣을 수 없음', true],
+    [['log', 'add', '--kind', 'change', 'x<!--'], '제목과 본문에 "<!--"를 넣을 수 없음', true],
+    [['log', 'add', '--kind', 'change', 'x', '--body', '본문 <!-- 주석'], '제목과 본문에 "<!--"를 넣을 수 없음', true],
     [['log'], '하위 명령이 없음 (log add)', true],
     [['log', 'remove'], '알 수 없는 명령 "log remove"', true],
   ];
@@ -134,14 +136,14 @@ test('40. 오류: 6.4.2 표의 조건마다 종료 2와 정해진 메시지를 �
   rmSync(join(noLog, LOG));
   const missingLog = runCli(['log', 'add', '--kind', 'change', 'x'], noLog);
   assert.equal(missingLog.code, 2);
-  assert.ok(missingLog.stderr.includes('crumbs: 로그 문서가 없음: docs/specs/log.md. 먼저 "crumbs init"을 실행하세요.'));
+  assert.ok(missingLog.stderr.includes('crumbs: 로그 문서가 없음: docs/specs/log.md. 먼저 "npx crumbs-spec init"을 실행하세요.'));
   assert.ok(!missingLog.stderr.includes('사용법'));
 
   // crumbs.json이 없으면 설정 오류 메시지만 낸다.
   const noConfig = tempDir();
   const missingConfig = runCli(['log', 'add', '--kind', 'change', 'x'], noConfig);
   assert.equal(missingConfig.code, 2);
-  assert.ok(missingConfig.stderr.includes('crumbs init'));
+  assert.ok(missingConfig.stderr.includes('npx crumbs-spec init'));
   assert.ok(!missingConfig.stderr.includes('사용법'));
 });
 

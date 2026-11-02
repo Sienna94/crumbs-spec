@@ -1,7 +1,10 @@
-import type { Lang } from './headings.js';
+import { VOCAB_KEYS, type Lang } from './headings.js';
 
 // 사용자에게 보이는 문자열 모음(12.2). 한국어 문구는 1단계 출력과 바이트 단위로 같다.
 // 명령·옵션 이름·규칙 id·파일 경로·식별자는 두 언어 모두 원문 그대로 둔다.
+// 영어 수 표기: 1이면 단수, 그 밖이면 복수다.
+const counted = (n: number, word: string): string => `${n} ${word}${n === 1 ? '' : 's'}`;
+
 export interface Messages {
   // 명령줄 (cli.ts)
   usage: string;
@@ -17,6 +20,7 @@ export interface Messages {
   titleEmpty: string;
   titleLineBreak: string;
   bodyHeading: string;
+  commentForbidden: string;
 
   // init (init.ts)
   configKept: (option: string) => string;
@@ -26,6 +30,7 @@ export interface Messages {
   next: string;
   claudeGuide: string;
   agentsMarkers: string;
+  rootMissing: (root: string) => string;
 
   // 설정 (config.ts)
   fileMissing: (where: string) => string;
@@ -41,10 +46,13 @@ export interface Messages {
   reasonUnknownHeading: (name: string) => string;
   reasonStringArray: string;
   reasonInsideSpec: string;
+  reasonInsideRoot: string;
+  reasonRelativePath: string;
 
   // 로그 (log.ts)
   logDocMissing: (path: string) => string;
   logAdded: (path: string, heading: string) => string;
+  logDateFuture: (date: string) => string;
 
   // 요약 (report.ts)
   summary: (documents: number, errors: number, warnings: number) => string;
@@ -60,6 +68,10 @@ export interface Messages {
   backlinkOneWay: (sourcePath: string) => string;
   codePathMissing: (raw: string) => string;
   duplicatePolicy: (name: string, others: string) => string;
+  duplicatePolicyInDoc: (name: string, line: number) => string;
+  noSpecSections: (target: string) => string;
+  unterminatedComment: string;
+  spellingMismatch: (rawTarget: string, actual: string) => string;
   openQuestions: (count: number) => string;
   logHeadingFormat: (text: string) => string;
   logKindUnknown: (kind: string, kinds: string) => string;
@@ -95,6 +107,7 @@ init options
 check options
   --format <text|json>   output format (default: text)
   --config <path>        config file path (default: <root>/crumbs.json)
+  exclude entries in crumbs.json are paths relative to the spec root; an entry ending in "/" excludes a directory
 
 log add options
   --kind <ingest|query|lint|drift|change|decision>   entry kind (required)
@@ -116,16 +129,18 @@ Example
     titleEmpty: 'title is empty',
     titleLineBreak: 'title cannot contain a line break',
     bodyHeading: 'body cannot contain a heading line (#)',
+    commentForbidden: 'title and body cannot contain "<!--"',
 
     configKept: (option) => `note: crumbs.json already exists, so its settings are used (${option} ignored)`,
     skipped: (path) => `skipped: ${path} (already exists)`,
     created: (path) => `created: ${path}`,
     updated: (path) => `updated: ${path}`,
-    next: 'next: crumbs check',
+    next: 'next: npx crumbs-spec check',
     claudeGuide: 'guide: add "@AGENTS.md" to CLAUDE.md so Claude Code reads the crumbs rules',
     agentsMarkers: 'AGENTS.md: crumbs markers are not paired',
+    rootMissing: (root) => `root directory not found: ${root}`,
 
-    fileMissing: (where) => `crumbs.json not found in ${where}. Run "crumbs init" first.`,
+    fileMissing: (where) => `crumbs.json not found in ${where}. Run "npx crumbs-spec init" first.`,
     configNotObject: 'crumbs.json: must be an object',
     unknownKey: (key) => `crumbs.json: unknown key "${key}"`,
     invalid: (key, reason) => `crumbs.json: "${key}" has an invalid value: ${reason}`,
@@ -136,15 +151,18 @@ Example
     reasonOne: 'only 1 is allowed',
     reasonDot: '"." or an empty value is not allowed',
     reasonObject: 'must be an object',
-    reasonUnknownHeading: (name) => `unknown heading key "${name}"`,
+    reasonUnknownHeading: (name) => `unknown heading key "${name}" (valid: ${VOCAB_KEYS.join(', ')})`,
     reasonStringArray: 'must be an array of strings',
     reasonInsideSpec: 'cannot be inside specDir',
+    reasonInsideRoot: 'must stay inside the repository root',
+    reasonRelativePath: 'must be a path relative to the spec root',
 
-    logDocMissing: (path) => `log document not found: ${path}. Run "crumbs init" first.`,
+    logDocMissing: (path) => `log document not found: ${path}. Run "npx crumbs-spec init" first.`,
     logAdded: (path, heading) => `added: ${path} — ${heading}`,
+    logDateFuture: (date) => `date is in the future: ${date}`,
 
     summary: (documents, errors, warnings) =>
-      `crumbs check: ${documents} documents, ${errors} errors, ${warnings} warnings`,
+      `crumbs check: ${counted(documents, 'document')}, ${counted(errors, 'error')}, ${counted(warnings, 'warning')}`,
 
     h1Title: 'first heading must be an H1',
     indexMissing: (path) => `index document not found: ${path}`,
@@ -156,12 +174,17 @@ Example
     backlinkOneWay: (sourcePath) => `linked from ${sourcePath} but no link back`,
     codePathMissing: (raw) => `code path not found: ${raw}`,
     duplicatePolicy: (name, others) => `duplicate policy "${name}": also in ${others}`,
-    openQuestions: (count) => `${count} open question marker(s)`,
+    duplicatePolicyInDoc: (name, line) => `duplicate policy "${name}": already defined in this document at line ${line}`,
+    noSpecSections: (target) =>
+      `no spec sections found; if this is not a crumbs document, add "${target}" to "exclude" in crumbs.json`,
+    unterminatedComment: 'HTML comment opened here is never closed; everything after it is invisible to check',
+    spellingMismatch: (rawTarget, actual) => `link spelling differs from the file on disk: ${rawTarget} (file: ${actual})`,
+    openQuestions: (count) => `${count} open question(s)`,
     logHeadingFormat: (text) => `log entry heading must be "## [YYYY-MM-DD] kind | title": "${text}"`,
     logKindUnknown: (kind, kinds) => `unknown kind "${kind}" (one of ${kinds})`,
     logDateInvalid: (date) => `date is not valid: ${date}`,
     logOrder: (previous, date) => `log entries are out of date order: ${date} is before ${previous}`,
-    decisionLink: 'decision entry has no document link',
+    decisionLink: 'decision entry has no document link (expected: Document: [policy](domain/file.md#anchor))',
     flowMissing: (steps) => `current behavior has ${steps} steps but no flow diagram or table`,
     sectionFirst: (title) => `section order differs from the template: first section must be "## ${title}"`,
     sectionLast: (title) => `section order differs from the template: last section must be "## ${title}"`,
@@ -191,6 +214,7 @@ init 옵션
 check 옵션
   --format <text|json>   출력 형식 (기본값: text)
   --config <path>        설정 파일 경로 (기본값: <root>/crumbs.json)
+  crumbs.json의 exclude 항목은 스펙 루트 기준 경로이며, "/"로 끝나면 디렉터리를 제외한다
 
 log add 옵션
   --kind <ingest|query|lint|drift|change|decision>   항목 종류 (필수)
@@ -212,16 +236,18 @@ log add 옵션
     titleEmpty: '제목이 비어 있음',
     titleLineBreak: '제목에 줄바꿈을 넣을 수 없음',
     bodyHeading: '본문에 제목 줄(#)을 넣을 수 없음',
+    commentForbidden: '제목과 본문에 "<!--"를 넣을 수 없음',
 
     configKept: (option) => `참고: crumbs.json이 이미 있어 그 설정을 사용함 (${option} 무시)`,
     skipped: (path) => `이미 있음, 건너뜀: ${path}`,
     created: (path) => `생성: ${path}`,
     updated: (path) => `갱신: ${path}`,
-    next: '다음: crumbs check',
+    next: '다음: npx crumbs-spec check',
     claudeGuide: '안내: Claude Code가 crumbs 규칙을 읽도록 CLAUDE.md에 "@AGENTS.md"를 추가하세요',
     agentsMarkers: 'AGENTS.md: crumbs 표시가 짝이 맞지 않음',
+    rootMissing: (root) => `저장소 루트 디렉터리를 찾을 수 없음: ${root}`,
 
-    fileMissing: (where) => `${where}에 crumbs.json이 없음. 먼저 "crumbs init"을 실행하세요.`,
+    fileMissing: (where) => `${where}에 crumbs.json이 없음. 먼저 "npx crumbs-spec init"을 실행하세요.`,
     configNotObject: 'crumbs.json: 타입이 객체이어야 함',
     unknownKey: (key) => `crumbs.json: 알 수 없는 키 "${key}"`,
     invalid: (key, reason) => `crumbs.json: "${key}" 값이 잘못됨: ${reason}`,
@@ -231,12 +257,15 @@ log add 옵션
     reasonOne: '1만 허용',
     reasonDot: '"."이나 빈 값은 안 됨',
     reasonObject: '타입이 객체이어야 함',
-    reasonUnknownHeading: (name) => `알 수 없는 어휘 키 "${name}"`,
+    reasonUnknownHeading: (name) => `알 수 없는 어휘 키 "${name}" (가능한 키: ${VOCAB_KEYS.join(', ')})`,
     reasonStringArray: '타입이 문자열 배열이어야 함',
     reasonInsideSpec: 'specDir 안에 둘 수 없음',
+    reasonInsideRoot: '저장소 루트 밖을 가리킬 수 없음',
+    reasonRelativePath: '스펙 루트 기준 상대 경로여야 함',
 
-    logDocMissing: (path) => `로그 문서가 없음: ${path}. 먼저 "crumbs init"을 실행하세요.`,
+    logDocMissing: (path) => `로그 문서가 없음: ${path}. 먼저 "npx crumbs-spec init"을 실행하세요.`,
     logAdded: (path, heading) => `추가: ${path} — ${heading}`,
+    logDateFuture: (date) => `날짜가 미래임: ${date}`,
 
     summary: (documents, errors, warnings) => `crumbs check: 문서 ${documents}개, 오류 ${errors}개, 경고 ${warnings}개`,
 
@@ -250,12 +279,17 @@ log add 옵션
     backlinkOneWay: (sourcePath) => `${sourcePath}에서 링크했지만 되돌아가는 링크가 없음`,
     codePathMissing: (raw) => `코드 경로가 없음: ${raw}`,
     duplicatePolicy: (name, others) => `중복 정책 "${name}": ${others}에도 있음`,
-    openQuestions: (count) => `미해결 질문 표시 ${count}개`,
+    duplicatePolicyInDoc: (name, line) => `중복 정책 "${name}": 이 문서의 ${line}줄에 이미 있음`,
+    noSpecSections: (target) =>
+      `스펙 절이 하나도 없음. crumbs 문서가 아니면 crumbs.json의 "exclude"에 "${target}"를 추가하세요`,
+    unterminatedComment: '여기서 연 HTML 주석이 닫히지 않음: 이후 내용은 check가 볼 수 없음',
+    spellingMismatch: (rawTarget, actual) => `링크 철자가 디스크의 파일과 다름: ${rawTarget} (파일: ${actual})`,
+    openQuestions: (count) => `미해결 질문 ${count}개`,
     logHeadingFormat: (text) => `로그 항목 제목 형식이 틀림: "${text}" (형식: [YYYY-MM-DD] kind | 제목)`,
     logKindUnknown: (kind, kinds) => `알 수 없는 kind "${kind}" (${kinds} 중 하나)`,
     logDateInvalid: (date) => `날짜가 유효하지 않음: ${date}`,
     logOrder: (previous, date) => `이전 항목(${previous})보다 날짜가 앞섬: ${date}`,
-    decisionLink: '결정 항목에 문서 링크가 없음',
+    decisionLink: '결정 항목에 문서 링크가 없음 (형식: 문서: [정책](domain/file.md#앵커))',
     flowMissing: (steps) => `현재 동작이 ${steps}단계인데 흐름 도식이나 표가 없음`,
     sectionFirst: (title) => `첫 절은 "## ${title}"이어야 함`,
     sectionLast: (title) => `마지막 절은 "## ${title}"이어야 함`,

@@ -113,6 +113,7 @@ function logAdd(root: string, values: Values, args: string[], lang: Lang): numbe
   if (/[\r\n]/.test(rawTitle)) throw new UsageError(m.titleLineBreak, lang);
   const body = values.body === undefined ? undefined : normalizeLogBody(values.body);
   if (body !== undefined && hasHeadingLine(body)) throw new UsageError(m.bodyHeading, lang);
+  if (rawTitle.includes('<!--') || (body ?? '').includes('<!--')) throw new UsageError(m.commentForbidden, lang);
 
   const config = loadRepoConfig(root, values.config, lang);
   assertLogDocument(root, config);

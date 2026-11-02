@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { ConfigError, defaultConfig, loadConfig, parseConfig } from './config.js';
 import { localDate } from './dates.js';
@@ -26,6 +26,15 @@ function mergeAgents(current: string | undefined, block: string, m: Messages): s
   throw new ConfigError(m.agentsMarkers);
 }
 
+// 저장소 루트가 디렉터리로 있어야 한다. 없으면 만들지 않고 설정 오류로 낸다.
+function isDirectory(path: string): boolean {
+  try {
+    return statSync(path).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
 // 파일은 없을 때만 만든다. 기존 파일은 절대 덮어쓰지 않는다. AGENTS.md는 자기 표시 블록만 바꾼다.
 // 쓰기 전에 설정과 AGENTS.md를 모두 검사하므로, 실패하면 아무 파일도 바뀌지 않는다.
 // skillsOption이 있으면 스킬 파일을 다섯 파일 뒤에 같은 방식으로 만든다.
@@ -40,6 +49,7 @@ export function runInit(
   const out: string[] = [];
   const configAbs = join(root, 'crumbs.json');
   const requested: Lang = langOption ?? 'en';
+  if (!isDirectory(root)) throw new ConfigError(MESSAGES[requested].rootMissing(root));
 
   let config: Config;
   let configText: string | undefined;
@@ -76,8 +86,8 @@ export function runInit(
   const agentsAbs = join(root, 'AGENTS.md');
   const agentsCurrent = existsSync(agentsAbs) ? readFileSync(agentsAbs, 'utf8') : undefined;
   const agentsNext = mergeAgents(agentsCurrent, agentsBlock(paths, config.lang), m);
+  const agentsChanged = agentsNext !== agentsCurrent;
 
-  mkdirSync(root, { recursive: true });
   if (configText !== undefined) writeFileSync(configAbs, configText);
   for (const [rel, content] of files) {
     const abs = join(root, rel);
@@ -89,12 +99,14 @@ export function runInit(
       out.push(m.created(rel));
     }
   }
-  if (agentsNext !== agentsCurrent) writeFileSync(agentsAbs, agentsNext);
-  out.push(m.updated('AGENTS.md'));
+  if (agentsChanged) writeFileSync(agentsAbs, agentsNext);
+  if (agentsCurrent === undefined) out.push(m.created('AGENTS.md'));
+  else if (agentsChanged) out.push(m.updated('AGENTS.md'));
+  else out.push(m.skipped('AGENTS.md'));
 
-  // CLAUDE.md는 고치지 않고, 가져오기 줄이 없을 때만 안내한다.
+  // CLAUDE.md는 고치지 않고, 없거나 가져오기 줄이 없으면 안내한다.
   const claudeAbs = join(root, 'CLAUDE.md');
-  if (existsSync(claudeAbs) && !readFileSync(claudeAbs, 'utf8').includes('@AGENTS.md')) {
+  if (!existsSync(claudeAbs) || !readFileSync(claudeAbs, 'utf8').includes('@AGENTS.md')) {
     out.push(m.claudeGuide);
   }
   out.push(m.next);
