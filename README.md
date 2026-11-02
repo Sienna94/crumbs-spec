@@ -1,168 +1,170 @@
 # crumbs-spec 🍞
 
-에이전트가 길을 잃지 않게 문서마다 빵부스러기(링크)를 남기고, 인덱스에서 상세 문서까지 한 길로 이어지는 **살아 있는 스펙**을 만들어요. 저장소가 *지금* 어떻게 동작하는지를 책임 단위 문서로 두고, 그 문서들이 잘 이어져 있는지 명령 하나로 검사하고, 에이전트가 문서를 쓰고·찾고·묻고·반영하는 절차를 스킬로 고정한 도구예요.
+[한국어](README.ko.md) · **English**
 
-## 왜 만들었나요
+crumbs-spec leaves breadcrumbs (links) on every document so an agent never gets lost, and keeps a **living spec** that leads from the index to the detail document in one path. It describes how the repository behaves *right now* in responsibility-sized documents, checks with one command that those documents are properly linked, and fixes the procedures an agent follows to write, find, ask about and ingest them as skills.
 
-실제 앱 저장소에서 수십 개의 스펙 문서를 에이전트와 함께 운영하다 보니 같은 일이 자꾸 반복됐어요.
+## Why we built it
 
-1. 스펙이 변경 단위(기능별 `spec.md`, 티켓)로만 남아서, 몇 달 뒤 "지금 이 규칙이 뭐지?"에 답할 문서가 없었어요.
-2. 위키처럼 쌓으니 같은 규칙이 여러 문서에 조금씩 다르게 적혔고, 어느 쪽이 맞는지 아무도 몰랐어요. 나중에 벤치마크를 돌려 보니 에이전트가 문서 간 불일치를 셋이나 찾아냈어요.
-3. 에이전트가 문서를 읽을 때 폴더 구조와 검색에 기대다 보니 다른 영역으로 새거나 grep으로 떨어졌어요. 질문 하나에 문서 8개를 읽는 일도 있었고요.
+Running dozens of spec documents together with agents on a real app repository, the same three things kept happening.
 
-"문서를 더 잘 쓰자"로는 해결이 안 됐어요. **구조를 기계가 강제하는 도구**가 필요했어요. 정책의 소유자를 하나로 정하고, 링크 그래프를 검사하고, 모르는 것은 질문으로 남기게 하면 에이전트도 사람도 같은 길로 문서에 닿아요. 그래서 빵부스러기를 뿌리기 시작했어요.
+1. Specs only survived as change units (per-feature `spec.md`, tickets), so months later there was no document that answered "what is the rule right now?".
+2. Piling them up like a wiki put the same rule into several documents with slightly different wording, and nobody knew which one was right. A later benchmark had an agent find three such contradictions.
+3. When agents read documents they leaned on folder structure and search, so they wandered into other areas or fell back to grep. One question cost eight documents.
 
-## 다른 도구와 어떻게 다른가요
+"Write better documents" did not fix it. We needed **a tool that enforces structure by machine**. Give every policy exactly one owner, check the link graph, and make the unknown a question instead of a guess, and both agents and people reach the document by the same path. So we started scattering breadcrumbs.
 
-Spec Kit은 구현 전 계획을, LLM Wiki는 자료를 쌓는 위키를 잘 다뤄요. crumbs-spec은 그 사이의 빈자리, **구현이 끝난 뒤에도 남아야 하는 현재 상태**를 맡아요. 대체가 아니라 보완 관계예요.
+## How it differs from other tools
 
-| | GitHub Spec Kit | OpenSpec | Karpathy LLM Wiki | **crumbs-spec** |
+Spec Kit is good at pre-implementation planning and LLM Wiki at accumulating sources. crumbs-spec takes the gap between them: **the current state that must survive after implementation**. It complements them rather than replacing them.
+
+| | GitHub Spec Kit | OpenSpec | Karpathy's LLM Wiki | **crumbs-spec** |
 |---|---|---|---|---|
-| 문서 단위 | 변경(기능) 하나: `spec.md`·`plan.md`·`tasks.md` | 현재 상태 스펙 + 변경 델타 | 엔티티·개념·원본 요약 페이지 | **책임(사용자 흐름) 하나**. 정책은 문서 하나가 소유 |
-| 시점 | 구현 전 | 구현 전·후 | 자료 반영 시점 | **구현 뒤 현재 동작** |
-| 기존 코드 | "추론하지 않는다"고 스스로 밝힘 | 온보딩은 있으나 코드→스펙 초안은 없음 | 원본 자료가 대상, 코드 아님 | **코드·테스트에서 초안을 만들고 모르는 것은 `[확인 필요]` 질문으로** |
-| 탐색 | 폴더와 파일 이름 | 폴더와 파일 이름 | 인덱스 우선 | **인덱스 → 개요 → 상세 링크만**. ID·front matter 없음 |
-| 기계 검사 | spec·plan·tasks 일관성 | 델타 병합 | 고아 페이지·끊긴 링크 lint(LLM 판단 포함) | **결정론적 15개 규칙**: 링크·앵커·도달 가능·역링크·정책 중복·근거 경로 실존·절 순서·흐름 도식·로그 형식 |
-| 구현 후 동기화 | 팀이 유지 방식을 고름 | `archive`/`sync`로 변경분만 | 질의 결과를 위키에 환류 | **에이전트 규칙("요청 없어도 같은 변경에서 문서 갱신") + 결정 로그 + 예정된 `drift`** |
-| 사람 가독성 | 산문 | 산문 | 산문 | **흐름 도식(Mermaid)과 분기 표를 템플릿에 포함** |
-| 측정 | 없음 | 없음 | 없음 | **같은 질문으로 두 문서 체계의 탐색 비용 비교** |
+| Document unit | One change (feature): `spec.md`, `plan.md`, `tasks.md` | Current-state spec + change deltas | Entity, concept and source-summary pages | **One responsibility (user flow)**. Each policy is owned by exactly one document |
+| Point in time | Before implementation | Before and after | When a source is ingested | **Current behaviour after implementation** |
+| Existing code | States that it "does not infer" | Has onboarding, but no code-to-spec drafting | Targets sources, not code | **Drafts from code and tests; the unknown becomes a `[확인 필요]` question** |
+| Navigation | Folders and file names | Folders and file names | Index first | **Index → overview → detail by links only**. No IDs, no front matter |
+| Machine checks | Consistency across spec, plan and tasks | Delta merge | Orphan page and broken link lint (with LLM judgement) | **15 deterministic rules**: links, anchors, reachability, backlinks, duplicate policies, evidence paths, section order, flow diagrams, log format |
+| Sync after implementation | The team picks a maintenance model | `archive`/`sync` for the change in hand | Feeds query results back into the wiki | **Agent rule ("update the owning document in the same change, even unasked") + decision log + planned `drift`** |
+| Human readability | Prose | Prose | Prose | **Flow diagrams (Mermaid) and branch tables in the template** |
+| Measurement | None | None | None | **Compares navigation cost of two document systems with the same questions** |
 
-LLM Wiki에서는 원본/위키/스키마 분리, 인덱스 우선, 추가 전용 로그, 사람이 감독하는 ingest를 그대로 가져왔어요. 일부러 다르게 한 건 셋이에요. 엔티티 페이지 대신 책임 단위로 조직하고(여러 흐름이 분기 축으로 쓰는 개념만 `concepts/`에 둬요), 문서는 에이전트가 유지하되 사람이 소유하고, lint는 LLM 판단 없이 결정론적으로만 해요. 더 자세한 비교는 [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) 1절에 있어요.
+From LLM Wiki we kept the raw/wiki/schema split, index-first navigation, the append-only log and human-supervised ingest. Three things are deliberately different: documents are organised by responsibility rather than entity (only concepts that several flows branch on get a page under `concepts/`), documents are maintained by agents but owned by people, and lint is deterministic with no LLM judgement. See section 1 of [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) (Korean) for the full comparison.
 
-## 중요하게 생각한 것
+## What we cared about
 
-- **현재 상태의 단일 진실.** 변경 디렉터리를 만들지 않아요. 문서는 "무엇이 바뀌었나"가 아니라 "지금 어떻게 동작하나"를 설명해요.
-- **추측 금지.** 코드·테스트·승인된 자료로 확인되지 않은 규칙은 "지금은 이렇게 동작한다" 서술과 `[확인 필요]` 질문으로만 남겨요. 질문 수는 `check`가 세어 줘요.
-- **사람 우선의 본문.** ID, 상태 표, 문법 강제가 없어요. 탐색 정보는 링크와 제목에만 둬요.
-- **검사는 결정론적으로, 판단은 사람과 스킬이.** `check`는 구조만 봐요. 문체·내용·노후 판정은 스킬 지침과 사람이 맡아요.
-- **결정은 한 곳에.** 질문이 답을 얻으면 로그에 `decision` 항목을 남기고 문서는 날짜 링크 하나로 그 결정을 가리켜요.
-- **한국어 먼저.** 템플릿, 메시지, 스킬이 모두 한국어예요. 영어판은 별도 브랜치로 만들 예정이에요.
+- **A single source of truth for the current state.** No change directories. Documents explain "how it behaves now", not "what changed".
+- **No guessing.** A rule not confirmed by code, tests or approved sources is written only as "right now it behaves like this" plus a `[확인 필요]` (needs confirmation) question. `check` counts the questions for you.
+- **People-first prose.** No IDs, no status tables, no enforced grammar. Navigation lives in links and headings only.
+- **Deterministic checks, human judgement.** `check` looks at structure only. Style, content and staleness are for skill guidance and people.
+- **Decisions in one place.** When a question gets its answer, a `decision` entry goes into the log and the document points at it with a single dated link.
+- **Korean first.** Templates, messages and skills are Korean. The English edition of the tool itself is planned as a separate branch; this README is the English guide.
 
-## 실제로 써 보니
+## What happened when we used it
 
-실제 앱 저장소 세 영역(코드 약 4만 줄)을 기존 스펙 문서를 전혀 보여 주지 않고 crumbs-writer 스킬로 다시 썼어요. 그다음 기존 스펙 체계와 crumbs 체계에 같은 질문 18개를 던져 에이전트가 문서만 읽고 답하게 했어요.
+We rewrote three areas of a real app repository (about 40,000 lines of code) with the crumbs-writer skill without showing it any existing spec document. Then we asked the same 18 questions of the existing spec system and the crumbs system and let an agent answer from documents only.
 
-**제로 베이스에서 쓰는 데 든 비용** (에이전트 1개가 도메인 하나를 맡음, 병렬 3개)
+**Cost of writing from zero** (one agent per domain, three in parallel)
 
-| 도메인 | 코드 범위 | 만든 문서 | 정책 | 테스트로 확정 / 질문 | 에이전트 토큰 | 작성 시간 |
+| Domain | Code | Documents | Policies | Confirmed by tests / questions | Agent tokens | Writing time |
 |---|---|---|---|---|---|---|
-| 결제 | 약 2만 줄 | 19개 | 100 | 5 / 95 | 57만 | 1시간 7분 |
-| 뷰어 | 약 2만 3천 줄 | 40개 | 194 | 29 / 165 | 85만 | 1시간 7분 |
-| 인증 | 약 1만 줄 | 35개 | 195 | 64 / 131 | 79만 | 1시간 13분 |
+| Payment | ~20k lines | 19 | 100 | 5 / 95 | 570k | 1 h 7 min |
+| Viewer | ~23k lines | 40 | 194 | 29 / 165 | 850k | 1 h 7 min |
+| Auth | ~10k lines | 35 | 195 | 64 / 131 | 790k | 1 h 13 min |
 
-작성 시간은 에이전트 전사의 타임스탬프에서 10분 넘게 비어 있던 대기 시간을 뺀 실제 작업 시간이에요. 세 도메인을 병렬로 돌려 1시간 15분쯤에 모두 끝났어요. 지어낸 정책은 0개였고, 기존 스펙 문서와 코드가 달랐던 6곳을 모두 코드대로 적었어요. 그 뒤 사용자 흐름 단위로 다시 묶어 38개 문서가 됐어요.
+Writing time is the actual working time from the agent transcripts' timestamps, excluding idle gaps longer than ten minutes. With the three domains in parallel everything finished in about 1 h 15 min. Not one policy was invented, and all six places where the existing spec disagreed with the code were written as the code behaves. The documents were later regrouped by user flow into 38.
 
-**같은 질문 18개로 비교한 탐색 비용** (에이전트는 문서만 읽고 코드는 금지)
+**Navigation cost on the same 18 questions** (documents only; reading code was forbidden)
 
-| | 기존 스펙 체계 | crumbs-spec |
+| | Existing spec system | crumbs-spec |
 |---|---|---|
-| 정답 | 17 / 18 (부분 1) | 15 / 18 (부분 3) |
-| 읽은 파일 수 합계 | 70 (평균 3.9, 최대 8) | 64 (평균 3.6, 최대 6) |
-| 검색(grep)으로 떨어진 횟수 | 3 | 1 |
-| 토큰 합계 | 232만 | 189만 (−18%) |
+| Correct answers | 17 / 18 (1 partial) | 15 / 18 (3 partial) |
+| Files read in total | 70 (avg 3.9, max 8) | 64 (avg 3.6, max 6) |
+| Fell back to grep | 3 | 1 |
+| Tokens in total | 2.32M | 1.89M (−18%) |
 
-기존 체계의 부분 정답은 소유 문서를 못 찾은 경우였고, crumbs의 부분 정답 3개는 모두 문서엔 3~5파일로 도달했는데 writer가 화면 수치·채널 분기 같은 세부를 버린 경우였어요. 그 원인은 스킬 규칙("조건이 붙은 값은 버리지 않는다")으로 고쳤어요. 질문이 기존 스펙에서 나와 기존 체계에 유리한 편향이 있다는 점은 감안해 주세요.
+The existing system's partial answer came from failing to find the owning document; the three crumbs partials all reached the owning document in 3–5 files but the writer had dropped details such as screen numbers and channel branches. That cause is now fixed by a skill rule ("do not drop values that carry a condition"). Note the bias: the questions were drawn from the existing specs, which favours the existing system.
 
-## 설치와 빠른 시작
+## Install and quick start
 
-Node.js 20 이상이 필요하고 실행 의존성은 없어요.
+Node.js 20 or later, no runtime dependencies.
 
 ```bash
-npx crumbs-spec init --skills all   # 문서 구조 + 에이전트 스킬 4종
-npx crumbs-spec init                # 문서 구조만
-npx crumbs-spec check               # 링크 그래프와 구조 검사
+npx crumbs-spec init --skills all   # document structure + the four agent skills
+npx crumbs-spec init                # document structure only
+npx crumbs-spec check               # check the link graph and structure
 ```
 
-`init`은 다음 일곱 파일을 만들고, 이미 있는 파일은 절대 덮어쓰지 않아요.
+`init` creates these seven files and never overwrites an existing one.
 
 ```
-crumbs.json                      설정
-docs/specs/index.md              인덱스(입구)
-docs/specs/log.md                추가 전용 로그
-docs/specs/templates/overview.md 개요 템플릿
-docs/specs/templates/detail.md   상세 템플릿
-docs/raw/README.md               원본 자료 디렉터리(읽기 전용)
-AGENTS.md                        crumbs 블록(에이전트 규칙)
+crumbs.json                      configuration
+docs/specs/index.md              index (the entrance)
+docs/specs/log.md                append-only log
+docs/specs/templates/overview.md overview template
+docs/specs/templates/detail.md   detail template
+docs/raw/README.md               raw sources directory (read-only)
+AGENTS.md                        crumbs block (agent rules)
 ```
 
-npm에 공개하기 전에는 저장소에서 `npm run build` 뒤 `node dist/src/cli.js <명령>`으로 실행해요.
+Until the package is on npm, run it from the repository with `npm run build` and then `node dist/src/cli.js <command>`.
 
-## 기존 프로젝트에 추가하기
+## Adding it to an existing project
 
-이미 코드와 문서가 있는 저장소에 넣는 순서예요. 한 번에 다 옮기지 말고 도메인 하나부터 시작해요.
+The order for a repository that already has code and documents. Start with one domain instead of moving everything at once.
 
-1. **저장소 루트에서 `init`을 실행해요.** 스펙 루트가 따로 있으면 `--spec-dir`로 지정해요(예: `docs/crumbs`). 기존 파일은 건드리지 않고, `AGENTS.md`가 이미 있으면 `<!-- crumbs:start -->`와 `<!-- crumbs:end -->` 사이 블록만 끼워 넣어요.
+1. **Run `init` at the repository root.** If your spec root lives elsewhere, pass `--spec-dir` (for example `docs/crumbs`). Existing files are left alone; if `AGENTS.md` already exists, only the block between `<!-- crumbs:start -->` and `<!-- crumbs:end -->` is inserted.
 
    ```bash
    npx crumbs-spec init --spec-dir docs/crumbs --skills claude
    ```
 
-2. **에이전트가 규칙을 읽게 해요.** Claude Code는 `CLAUDE.md`에 `@AGENTS.md` 한 줄이 있어야 crumbs 블록을 읽어요. 스킬은 `.claude/skills/`(Claude Code)와 `.agents/skills/`(Codex)에서 자동으로 찾아요.
+2. **Let the agent read the rules.** Claude Code only reads the crumbs block if `CLAUDE.md` contains the line `@AGENTS.md`. Skills are found automatically under `.claude/skills/` (Claude Code) and `.agents/skills/` (Codex).
 
-3. **기존 문서는 옮기지 않아요.** writer는 코드와 테스트만 원본으로 삼고, 기존 위키·설계 메모·README는 사용자가 원본 자료로 지목하지 않는 한 읽지 않아요. 지금 코드와 맞는지 확인할 수 없기 때문이에요. 기존 문서 중 근거로 쓸 것(기획서, 계약서, 정책 결정 기록)은 `docs/raw/`에 복사해 두고 `crumbs-ingest`로 한 건씩 반영해요.
+3. **Do not migrate existing documents.** The writer treats code and tests as the only sources and does not read existing wikis, design notes or READMEs unless you name them as sources, because there is no way to know whether they still match the code. Copy the ones worth using as evidence (plans, contracts, decision records) into `docs/raw/` and ingest them one at a time with `crumbs-ingest`.
 
-4. **첫 도메인을 코드에서 써요.** 가장 자주 질문받는 영역 하나를 고르고 writer의 "기존 코드 문서화" 모드로 맡겨요. 결과물의 `[확인 필요]` 질문 목록이 그 영역에서 사람이 결정해야 할 것의 목록이 돼요.
+4. **Write the first domain from code.** Pick the area people ask about most and hand it to the writer's "document existing code" mode. The `[확인 필요]` questions in the result become the list of things a person has to decide for that area.
 
    ```
-   src/billing/ 아래 코드를 crumbs-writer의 "기존 코드 문서화" 모드로 문서화해 줘.
-   도메인 디렉터리는 docs/crumbs/billing/이다. 확인하지 못한 정책은 질문으로 남기고 끝까지 해 줘.
+   Document the code under src/billing/ with crumbs-writer in "document existing code" mode.
+   The domain directory is docs/crumbs/billing/. Leave unconfirmed policies as questions and finish the whole thing.
    ```
 
-5. **`check`를 CI에 걸어요.** 오류(끊어진 링크·앵커, 도달 불가 문서, 빠진 역링크, 없는 코드 경로, 정책 이름 중복)만 실패시키고 경고는 둬요. 아직 crumbs로 다루지 않는 디렉터리가 스펙 루트 안에 있으면 `crumbs.json`의 `exclude`에 넣어요.
+5. **Put `check` in CI.** Fail only on errors (broken links and anchors, unreachable documents, missing backlinks, missing code paths, duplicate policy names) and leave warnings alone. Directories under the spec root that are not crumbs documents yet go into `exclude` in `crumbs.json`.
 
-6. **코드를 바꿀 때 문서를 같이 바꿔요.** AGENTS 블록이 "요청이 없어도 같은 변경에서 소유 문서를 갱신한다"를 에이전트에게 요구하니까, PR마다 `check`와 로그 항목이 함께 들어와요. 도메인이 하나씩 늘어나면서 인덱스가 채워져요.
+6. **Change the document in the same change as the code.** The AGENTS block tells the agent to "update the owning document in the same change, even when nobody asked", so every PR brings `check` and a log entry with it. The index fills in as domains are added one by one.
 
-기존 스펙 체계가 있다면 두 체계에 같은 질문을 던져 비교해 보세요. 읽은 파일 수와 정답률로 어느 쪽이 더 잘 찾히는지 바로 보여요(5단계 벤치마크 러너가 이걸 자동화할 예정이에요).
+If you already have a spec system, try asking both systems the same questions. Files read and correct answers show at once which one is easier to navigate (the step-5 benchmark runner will automate this).
 
-## 스펙이 만들어지는 순서
+## How a spec gets written
 
-writer 스킬이 "기존 코드 문서화" 모드로 일할 때의 순서예요. "변경 반영" 모드는 1~2단계가 "바뀐 코드 경로를 근거에 적은 소유 문서 찾기"로 바뀌고 나머지는 같아요.
+The order the writer skill follows in "document existing code" mode. In "reflect a change" mode, steps 1–2 become "find the owning document whose evidence names the changed code path" and the rest is the same.
 
 ```mermaid
 flowchart TD
-    A["인덱스와 템플릿 읽기"] --> B["진입점부터 코드와 테스트 따라 읽기"]
-    B --> C["책임 경계 정하기 사용자 흐름 하나 = 문서 하나"]
-    C --> D["현재 동작 쓰기 단계는 ### 소제목"]
-    D --> E{"테스트가 확정하는 규칙인가"}
-    E -->|예| F["정책으로 적기"]
-    E -->|아니오| G["지금 동작 서술 + 확인 필요 질문"]
-    F --> H["흐름 도식과 분기 표"]
+    A["Read the index and templates"] --> B["Follow code and tests from the entry point"]
+    B --> C["Draw the responsibility boundary: one user flow = one document"]
+    C --> D["Write 현재 동작 (current behaviour), steps as ### subheadings"]
+    D --> E{"Is the rule confirmed by a test"}
+    E -->|yes| F["Write it as a policy"]
+    E -->|no| G["Statement of current behaviour + 확인 필요 question"]
+    F --> H["Flow diagram and branch tables"]
     G --> H
-    H --> I["근거 경로와 관련 문서 양방향 링크"]
-    I --> J["개요 문서 목록과 인덱스 갱신"]
+    H --> I["Evidence paths and mutual related-document links"]
+    I --> J["Update the overview list and the index"]
     J --> K["crumbs check"]
-    K -->|오류| I
-    K -->|통과| L["log add 결과 이유 문서"]
+    K -->|errors| I
+    K -->|clean| L["log add: result, reason, document"]
 ```
 
-답이 생기면 `crumbs-interview`가 만든 질문에 사람이 답하고, writer가 질문 정책을 확정 정책으로 바꾸며 `decision` 로그와 결정 링크를 남겨요. 새 자료가 들어오면 `crumbs-ingest`가 영향 문서를 찾아 확인받은 뒤 반영해요.
+When an answer arrives, a person answers the questions produced by `crumbs-interview`, and the writer turns the question policy into a confirmed one, leaving a `decision` log entry and a decision link. When new material arrives, `crumbs-ingest` finds the affected documents, gets confirmation and then applies it.
 
-## 문서 모델
+## Document model
 
-역할은 넷이에요. 탐색은 항상 인덱스에서 시작해요.
+There are four roles. Navigation always starts at the index.
 
 ```
-docs/specs/index.md              인덱스: 도메인 목록 + 로그 링크
-docs/specs/<도메인>/overview.md   개요: 범위, 흐름도, 문서 목록, 용어
-docs/specs/<도메인>/<책임>.md     상세: 사용자 흐름 하나
-docs/specs/log.md                로그: 한 일을 시간순으로
-docs/specs/concepts/             여러 도메인이 함께 쓰는 개념(선택)
-docs/raw/                        계약서·기획 메모 같은 불변 원본
+docs/specs/index.md              index: domain list + log link
+docs/specs/<domain>/overview.md  overview: scope, flow diagram, document list, terms
+docs/specs/<domain>/<topic>.md   detail: one user flow
+docs/specs/log.md                log: what was done, in order
+docs/specs/concepts/             concepts shared by several domains (optional)
+docs/raw/                        immutable sources such as contracts and plans
 ```
 
-상세 문서의 절은 고정이에요.
+The sections of a detail document are fixed. Headings are Korean by default and can be renamed through `headings` in `crumbs.json`.
 
-| 절 | 내용 |
+| Section | Content |
 |---|---|
-| 목적 | 이 문서가 소유하는 책임 하나와 맡지 않는 범위 |
-| 현재 동작 | 사용자가 겪는 대로, 현재형으로. 단계가 셋 이상이면 `###` 소제목 |
-| 흐름 | 두 단계 이상이면 Mermaid 도식, 비교 축이 둘 이상이면 표 |
-| 정책 | `### 정책 이름`(저장소 전체에서 유일)과 규칙. 미확정이면 지금 동작 서술 뒤에 `[확인 필요]` 질문 |
-| 근거 | 백틱 코드 경로와 설명. `check`가 경로의 존재를 확인해요 |
-| 확인 필요 사항 | `- [확인 필요] [정책 이름](#앵커) — 질문` |
-| 관련 문서 | 개요로 가는 링크와 이웃 문서. 역링크는 상호여야 해요 |
+| 목적 (purpose) | The one responsibility this document owns and what it does not cover |
+| 현재 동작 (current behaviour) | As the user experiences it, in the present tense; three or more steps become `###` subheadings |
+| 흐름 (flow) | A Mermaid diagram for two or more steps; a table when there are two or more comparison axes |
+| 정책 (policies) | `### policy name` (unique across the repository) and the rule; if unconfirmed, a statement of current behaviour followed by a `[확인 필요]` question |
+| 근거 (evidence) | Backticked code paths with a description; `check` verifies the path exists |
+| 확인 필요 사항 (open questions) | `- [확인 필요] [policy name](#anchor) — question` |
+| 관련 문서 (related) | Link to the overview and neighbouring documents; backlinks must be mutual |
 
-예시(`docs/specs/shopping/장바구니.md`):
+Example (`docs/specs/shopping/장바구니.md`, "cart"):
 
 ````markdown
 # 장바구니
@@ -205,19 +207,19 @@ flowchart TD
 - [쿠폰 할인](쿠폰-할인.md)
 ````
 
-문서 본문은 간결한 `-한다`체로 써요. 개요의 `## 용어`는 별칭을 소유 정책으로 잇는 링크 목록이에요(`- 정액권(정액제) — [정액권 이용 중 판정](정액권.md#정액권-이용-중-판정)`). 정의만 있는 용어는 여기서 끝나고, 여러 흐름이 분기 축으로 쓰는 개념(채널, 재화, 회원 상태)만 `concepts/`에 소유 문서를 둬요.
+The overview's `## 용어` (terms) section is a list of aliases linked to the owning policy (`- 정액권(정액제) — [정액권 이용 중 판정](정액권.md#정액권-이용-중-판정)`). A term that is only a definition stops there; only concepts that several flows branch on (channel, currency, member state) get an owning document under `concepts/`.
 
-## 명령
+## Commands
 
 ```bash
 npx crumbs-spec init [--spec-dir <dir>] [--skills <claude|codex|all>]
 npx crumbs-spec check [--format text|json] [--config <path>]
-npx crumbs-spec log add --kind <ingest|query|lint|drift|change|decision> "<제목>" [--body "<본문>"]
+npx crumbs-spec log add --kind <ingest|query|lint|drift|change|decision> "<title>" [--body "<body>"]
 ```
 
-공통 옵션은 `--root <dir>`(저장소 루트, 기본값은 현재 디렉터리), `-h`/`--help`, `-v`/`--version`이에요. 설정은 저장소 루트의 `crumbs.json`에 둬요(`specDir`, `index`, `overview`, `log`, `headings`, `exclude`, `codeRoot`, `rawDir`).
+Common options are `--root <dir>` (repository root, default: current directory), `-h`/`--help` and `-v`/`--version`. Configuration lives in `crumbs.json` at the repository root (`specDir`, `index`, `overview`, `log`, `headings`, `exclude`, `codeRoot`, `rawDir`).
 
-`check`의 출력은 `파일:줄 심각도 규칙: 메시지` 한 줄씩이고 마지막 줄이 요약이에요.
+`check` prints one line per finding as `file:line severity rule: message`, and a summary last.
 
 ```
 docs/specs/shopping/장바구니.md:34 error broken-anchor: 앵커가 없음: 쿠폰-할인.md#적용-순서
@@ -226,35 +228,35 @@ docs/specs/shopping/장바구니.md:20 warning open-question: 미해결 질문 �
 crumbs check: 문서 4개, 오류 1개, 경고 1개
 ```
 
-### 검사 규칙
+### Check rules
 
-| 규칙 | 심각도 | 잡는 것 |
+| Rule | Severity | What it catches |
 |---|---|---|
-| `index-missing` | 오류 | 인덱스 문서가 없어요(다른 규칙은 돌지 않아요) |
-| `missing-title` | 오류 | 첫 제목이 H1이 아니에요 |
-| `broken-link` / `broken-anchor` | 오류 | 링크 대상 파일·제목이 없어요 |
-| `unreachable` | 오류 | 인덱스에서 링크로 닿을 수 없는 문서예요 |
-| `missing-section` | 오류 | 역할별 필수 절이 없어요 |
-| `missing-backlink` | 오류 | 부모(개요·인덱스)로 돌아가는 링크가 없거나, 상세 A→B 링크에 B→A가 없어요 |
-| `missing-code-path` | 오류 | 근거의 코드 경로가 존재하지 않아요 |
-| `duplicate-policy` | 오류 | 같은 정책 이름이 두 문서에 있어요 |
-| `log-format` | 오류 | 로그 항목이 `## [YYYY-MM-DD] kind \| 제목` 형식이 아니에요 |
-| `open-question` | 경고 | 문서의 `[확인 필요]` 수예요 |
-| `log-order` | 경고 | 로그 날짜가 역순이에요 |
-| `missing-flow` | 경고 | 현재 동작이 6단계 이상인데 도식도 표도 없어요 |
-| `section-order` | 경고 | 절 순서가 템플릿과 달라요 |
-| `log-body` | 경고 | `decision` 항목에 문서 링크가 없어요 |
+| `index-missing` | error | The index document is missing (no other rule runs) |
+| `missing-title` | error | The first heading is not an H1 |
+| `broken-link` / `broken-anchor` | error | The link target file or heading does not exist |
+| `unreachable` | error | A document that cannot be reached from the index by links |
+| `missing-section` | error | A required section for the role is missing |
+| `missing-backlink` | error | No link back to the parent (overview or index), or a detail A→B link without B→A |
+| `missing-code-path` | error | An evidence code path does not exist |
+| `duplicate-policy` | error | The same policy name appears in two documents |
+| `log-format` | error | A log entry is not in the form `## [YYYY-MM-DD] kind \| title` |
+| `open-question` | warning | Number of `[확인 필요]` markers in a document |
+| `log-order` | warning | Log dates are out of order |
+| `missing-flow` | warning | Current behaviour has six or more steps but no diagram or table |
+| `section-order` | warning | Sections are not in template order |
+| `log-body` | warning | A `decision` entry has no document link |
 
-## 로그
+## Log
 
-로그는 한 곳(`docs/specs/log.md`)에 시간순으로 덧붙여요. 제목은 작업명이 아니라 **사용자 결과 한 문장**이고, 본문은 세 줄이에요.
+The log is appended in one place (`docs/specs/log.md`) in chronological order. The title is **one sentence about the user outcome**, not the task name, and the body has three lines.
 
 ```bash
 npx crumbs-spec log add --kind change "장바구니 수량 상한을 99로 올림" \
   --body "결과: 한 줄에 99개까지 담을 수 있다. 이유: 요청 SHOP-42. 문서: [수량 상한](shopping/장바구니.md#수량-상한)"
 ```
 
-`[확인 필요]` 질문이 답을 얻으면 `decision` 항목을 남기고, 확정한 정책 본문 끝에 결정 링크 하나를 둬요. 문서 안에 변경 이력을 두지 않는 대신 결정은 로그에 쌓이고 문서는 링크로만 가리켜요.
+When a `[확인 필요]` question gets its answer, add a `decision` entry and put one decision link at the end of the confirmed policy. Instead of change-history tables inside documents, decisions accumulate in the log and documents only point at them.
 
 ```markdown
 ## [2026-11-02] decision | 최소 주문 금액: 10,000원은 배송비 정책에서 온 값이다
@@ -266,97 +268,99 @@ npx crumbs-spec log add --kind change "장바구니 수량 상한을 99로 올�
 합계가 10,000원 미만이면 결제 버튼을 비활성화한다. (결정: [2026-11-02](../log.md#2026-11-02-decision-최소-주문-금액-10000원은-배송비-정책에서-온-값이다))
 ```
 
-kind는 `ingest`(원본 자료 반영), `query`(답을 찾아 환류), `lint`, `drift`, `change`(문서 변경), `decision`(질문 확정)이에요.
+The kinds are `ingest` (a source was applied), `query` (an answer fed back), `lint`, `drift`, `change` (a document changed) and `decision` (a question was settled).
 
-## 스킬
+## Skills
 
-`init --skills`는 에이전트가 crumbs 문서를 다루는 절차를 `.claude/skills/<이름>/SKILL.md`(Claude Code)와 `.agents/skills/<이름>/SKILL.md`(Codex)에 설치해요. 기존 `SKILL.md`는 덮어쓰지 않으니 새 버전으로 바꾸려면 지우고 다시 설치해요. Claude Code는 `CLAUDE.md`에 `@AGENTS.md`가 있어야 crumbs 블록의 규칙을 읽어요.
+`init --skills` installs the procedures an agent follows into `.claude/skills/<name>/SKILL.md` (Claude Code) and `.agents/skills/<name>/SKILL.md` (Codex). An existing `SKILL.md` is never overwritten; delete it and run `init --skills` again to upgrade. Claude Code reads the crumbs block only when `CLAUDE.md` contains `@AGENTS.md`.
 
-| 스킬 | 하는 일 |
+| Skill | What it does |
 |---|---|
-| `crumbs-writer` | 문서를 쓰거나 갱신해요. "변경 반영"(바뀐 코드 → 소유 문서)과 "기존 코드 문서화"(코드·테스트만으로 처음 쓰기) 두 모드. 책임 단위, 문체, 질문 형식, 흐름 도식, 개념 페이지 기준을 담고 있어요 |
-| `crumbs-finder` | 인덱스 → 개요 → 상세 순으로 답을 찾아 출처와 함께 답하고, 좋은 답은 `query` 로그로 환류해요 |
-| `crumbs-interview` | 요청이 건드리는 정책 중 미확인인 것을 질문으로 만들고 멈춰요 |
-| `crumbs-ingest` | `docs/raw/`의 새 자료를 읽고 영향 문서를 찾아 확인받은 뒤 반영하고 `ingest` 로그를 남겨요 |
+| `crumbs-writer` | Writes or updates documents in two modes: "reflect a change" (changed code → owning document) and "document existing code" (first draft from code and tests only). Carries the rules for responsibility size, style, question format, flow diagrams and concept pages |
+| `crumbs-finder` | Finds the answer index → overview → detail, cites the source, and feeds good answers back as `query` log entries |
+| `crumbs-interview` | Turns the unconfirmed policies a request touches into questions and stops |
+| `crumbs-ingest` | Reads new material under `docs/raw/`, finds the affected documents, applies them after confirmation and leaves an `ingest` entry |
 
-## 사용 예시
+## Usage examples
 
-### 1. 기존 코드를 처음 문서화해요
+### 1. Document existing code for the first time
 
 ```
-src/cart/ 아래 코드를 crumbs-writer의 "기존 코드 문서화" 모드로 문서화해 줘.
-도메인 디렉터리는 docs/specs/shopping/이고, 확인하지 못한 정책은 질문으로 남기고 끝까지 해 줘.
+Document the code under src/cart/ with crumbs-writer in "document existing code" mode.
+The domain directory is docs/specs/shopping/. Leave unconfirmed policies as questions and finish the whole thing.
 ```
 
-에이전트는 인덱스와 템플릿을 읽고, 진입점부터 코드와 테스트를 따라가며 `shopping/overview.md`와 상세 문서를 만들어요. 테스트가 확정하는 규칙은 정책으로, 코드에만 있는 규칙은 "지금은 …" 서술과 `[확인 필요]` 질문으로 적어요. 끝에 `check`를 돌려 오류를 없애고 로그를 남겨요.
+The agent reads the index and templates, follows code and tests from the entry point, and produces `shopping/overview.md` plus the detail documents. Rules confirmed by tests become policies; rules that exist only in code become "right now …" statements with `[확인 필요]` questions. It ends by running `check`, clearing errors and adding a log entry.
 
 ```
 crumbs check: 문서 5개, 오류 0개, 경고 3개
 ```
 
-경고는 남긴 질문의 수예요. `확인 필요 사항` 절만 훑어도 무엇을 결정해야 하는지 알 수 있어요.
+The warnings are the questions left behind. Skimming the open-questions section is enough to see what has to be decided.
 
-### 2. 코드 변경을 문서에 반영해요
-
-```
-장바구니 수량 상한을 99에서 199로 올렸어. 문서도 맞춰 줘.
-```
-
-writer는 `grep -rl 'src/cart/cart.ts' docs/specs`로 근거에 그 경로를 적은 소유 문서를 찾고, "현재 동작"과 `### 수량 상한` 본문을 고치고, 흐름 도식의 값을 맞추고, 로그에 `change | 장바구니 수량 상한을 199로 올림`을 남겨요. 소유 문서가 둘로 보이면 멈추고 어느 쪽이 소유자인지 물어요.
-
-### 3. 모르는 정책은 묻고, 답은 결정으로 남겨요
+### 2. Reflect a code change
 
 ```
-쿠폰 중복 적용 규칙을 바꾸려고 해. 먼저 뭘 확인해야 하지?
+I raised the cart quantity limit from 99 to 199. Update the docs.
 ```
 
-interview가 요청이 건드리는 정책을 나열하고, 코드·테스트·원본으로 확인된 것과 미확인인 것을 가른 뒤 미확인 정책을 질문으로 내요. 답하시면 writer가 정책을 확정 서술로 바꾸고 `decision` 로그와 결정 링크를 남겨요.
+The writer finds the owning document with `grep -rl 'src/cart/cart.ts' docs/specs` (the evidence section names the path), fixes the current-behaviour section and the `### 수량 상한` policy, updates the value in the flow diagram, and logs `change | 장바구니 수량 상한을 199로 올림`. If two documents look like owners it stops and asks which one is.
 
-### 4. 원본 자료를 반영해요
-
-```
-docs/raw/coupon-policy-v3.pdf를 반영해 줘.
-```
-
-ingest가 자료를 읽고 영향을 받는 문서를 인덱스·역링크·근거로 찾아 "바꿀 내용 목록"을 먼저 보여 줘요. 확인을 받은 뒤에만 소유 문서를 고치고 `ingest` 로그를 남겨요. 자동 병합은 하지 않아요.
-
-### 5. 답을 찾아요
+### 3. Ask about what is unknown and record the answer as a decision
 
 ```
-장바구니에 몇 개까지 담을 수 있어?
+I want to change the coupon stacking rule. What do I need to confirm first?
 ```
 
-finder는 인덱스 → 쇼핑 개요 → 장바구니 문서 순으로 내려가 `### 수량 상한`을 출처로 답해요. 용어·개념 질문이면 `concepts/overview.md`의 용어 절을 먼저 봐요. 문서에 답이 없으면 "문서에 없음"과 가장 가까이 간 문서를 말해요.
+The interview skill lists the policies the request touches, separates those confirmed by code, tests or sources from those that are not, and turns the unconfirmed ones into questions. Once you answer, the writer rewrites the policy as confirmed and leaves a `decision` log entry and a decision link.
 
-### 6. CI에서 검사해요
+### 4. Ingest a source document
+
+```
+Apply docs/raw/coupon-policy-v3.pdf.
+```
+
+The ingest skill reads the source, finds the affected documents through the index, backlinks and evidence, and shows the list of intended changes first. Only after confirmation does it edit the owning documents and add an `ingest` entry. There is no automatic merge.
+
+### 5. Find an answer
+
+```
+How many items can go into the cart?
+```
+
+The finder goes index → shopping overview → cart document and answers with `### 수량 상한` as the source. For term or concept questions it checks the terms section of `concepts/overview.md` first. If the documents do not answer, it says "not in the documents" and names the closest one.
+
+### 6. Check in CI
 
 ```yaml
 - run: npx crumbs-spec check --format json > crumbs-report.json
 ```
 
-종료 코드 1이면 오류가 있어요. 경고(`open-question`, `missing-flow` 등)는 실패시키지 않아요.
+Exit code 1 means there are errors. Warnings (`open-question`, `missing-flow` and so on) do not fail the build.
 
-## 종료 코드
+## Exit codes
 
-| 코드 | 의미 |
+| Code | Meaning |
 |---|---|
-| 0 | `check`: 오류가 없어요(경고는 허용). `init`·`log add`: 완료 |
-| 1 | `check`: 오류가 하나 이상 있어요 |
-| 2 | 사용법 오류, 설정 오류, 예기치 않은 I/O 오류 |
+| 0 | `check`: no errors (warnings allowed). `init` and `log add`: done |
+| 1 | `check`: at least one error |
+| 2 | Usage error, configuration error or unexpected I/O error |
 
-## 설계에서 뺀 것
+## What we left out
 
-- 요구사항 ID, front matter, EARS 같은 문법 강제. 탐색 정보는 링크와 제목에만 둬요.
-- 문서 안의 변경 이력 표와 결정마다 별도 파일. 결정은 로그 한 곳에 쌓고 문서는 링크로 가리켜요.
-- 정의만 있는 용어 페이지. 개요의 용어 절로 충분해요.
-- `check`의 문체·내용 판정. 문체는 스킬 지침과 [docs/lint/](docs/lint/README.md)의 markdownlint 설정 샘플이 맡아요.
+- Requirement IDs, front matter and enforced grammar such as EARS. Navigation lives in links and headings only.
+- Change-history tables inside documents and one file per decision. Decisions go into the single log and documents point at them.
+- Definition-only term pages. The overview's terms section is enough.
+- Style and content judgement in `check`. Style is handled by the skill guidance and the markdownlint sample under [docs/lint/](docs/lint/README.md).
 
-## 로드맵
+## Roadmap
 
-| 단계 | 내용 | 상태 |
+| Step | Content | Status |
 |---|---|---|
-| 1 | `init`, `check`, 템플릿, AGENTS 블록 | 완료 |
-| 2 | 스킬 4종, `log add`, 흐름 절, 책임 단위 기준, 용어·개념 페이지, 결정 로그 | 완료 |
-| 3 | `crumbs reverse <path>` — 코드에서 초안 생성 명령(지금은 writer 스킬이 대신해요) | 예정 |
-| 4 | `crumbs drift --base <ref>` — diff로 근거가 바뀐 문서를 찾아요 | 예정 |
-| 5 | 예제 앱과 탐색 비용 벤치마크 러너 | 예정 |
+| 1 | `init`, `check`, templates, AGENTS block | done |
+| 2 | Four skills, `log add`, flow section, responsibility-size rules, terms and concept pages, decision log | done |
+| 3 | `crumbs reverse <path>` — a command that drafts from code (the writer skill does this today) | planned |
+| 4 | `crumbs drift --base <ref>` — finds documents whose evidence changed in a diff | planned |
+| 5 | Example app and a navigation-cost benchmark runner | planned |
+
+Korean comes first (`lang: ko`); an English edition of the templates, messages and skills is planned as a separate branch.

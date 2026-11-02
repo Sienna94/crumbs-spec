@@ -1881,3 +1881,38 @@ interview·ingest·AGENTS 블록·템플릿·`check`는 바꾸지 않는다. wri
 - 결정마다 별도 파일(`records/decisions/`). 로그 하나 원칙을 지킨다.
 - `log add`에 `--result`·`--reason` 같은 새 옵션. 본문 규약은 스킬이 지키고 `log-body`가 최소한만 본다.
 - 과거 항목의 소급 수정.
+
+---
+
+## 12. 언어 옵션 `lang`: 영어 기본, 한국어 지원
+
+### 12.1 결정
+
+2026-11-02 사용자 결정: 도구는 영어가 기본이고 한국어를 옵션으로 지원한다. `crumbs.json`의 `lang`은 `en` | `ko`이며 기본값은 `en`이다. 스펙 문서의 언어는 저장소마다 하나이고(`lang` 하나가 절 제목 어휘·템플릿·스킬·AGENTS 블록·CLI 메시지를 모두 정한다), 이미 `ko`로 만든 저장소는 그대로 동작한다. 1.5의 "한국어 먼저"와 4.3의 `lang: ko만 지원`은 이 절로 대체한다. README는 영어 기본(`README.md`) + 한국어(`README.ko.md`)로 이미 바뀌었다.
+
+### 12.2 변경
+
+| 항목 | 내용 |
+|---|---|
+| 설정 | `defaultConfig().lang = 'en'`. `validate`는 `en`·`ko`만 받고 그 밖은 `"lang" 값이 잘못됨: en 또는 ko만 지원`. `Config.lang: Lang`. |
+| 어휘 | `headings.ts`: `Lang = 'en' \| 'ko'`, `VOCAB.en = { purpose: 'Purpose', behavior: 'Current behavior', flow: 'Flow', policies: 'Policies', evidence: 'Evidence', questions: 'Open questions', documents: 'Documents', terms: 'Terms', related: 'Related' }`. 비교 규칙(4.4.3)은 같다. 마커는 두 언어 모두 `[확인 필요]`·`[needs confirmation]`을 항상 인식한다(변경 없음). |
+| 템플릿 | `src/templates/en.ts`가 `ko.ts`와 같은 다섯 템플릿(index, overview, detail, log, rawReadme)을 영어로 둔다. 안내 주석·자리 표시·로그 머리말까지 문장 단위로 대응한다. `init`은 `lang`으로 고른다. |
+| 스킬 | `src/templates/skills-en.ts`가 `skills-ko.ts`의 네 스킬을 문장 단위로 대응해 영어로 둔다(절 제목 수와 번호 항목 수가 같다). 영어판은 `[needs confirmation]` 마커를 쓰고, 명령 예시는 같다. `skillFiles(agents, paths, lang)`. frontmatter `name`은 같고 `description`만 번역한다. |
+| AGENTS 블록 | `agents.ts`의 `agentsBlock(p, lang)`. 마커 두 줄(`crumbs:start/end`)은 같다. |
+| 메시지 | `src/messages.ts`: `MESSAGES: Record<Lang, …>`에 CLI 사용법·도움말, `init` 출력 줄(`생성:`/`created:`, `건너뜀:`/`skipped:`, `갱신:`/`updated:`, `다음:`/`next:`), `check` 요약(`crumbs check: 문서 N개, 오류 N개, 경고 N개` / `crumbs check: N documents, N errors, N warnings`), 규칙 메시지 15종, `log add` 출력과 오류, 설정 오류를 둔다. 규칙 모듈은 `graph.lang`으로 메시지를 고른다. 규칙 id·심각도·종료 코드·JSON 스키마는 언어와 무관하다. 설정 파일을 읽기 전의 오류(파일 없음, JSON 오류)는 `--lang`이 없으면 영어로 낸다. |
+| CLI | `init --lang <en\|ko>`(기본 `en`)가 `crumbs.json`에 기록한다. `check`·`log add`는 설정의 `lang`을 따른다. |
+| 문서 | README 두 판에 `--lang` 설명과 "한국어 저장소는 `--lang ko`" 한 줄. 4.3 표의 `lang` 행, 4.4.3 표에 영어 열, 4.7 사용법, 4.9 템플릿 설명을 갱신한다. 6.3.x 원문과 `skills-ko.ts`의 동기화 규칙은 그대로이고, 영어 스킬의 원문은 `skills-en.ts`가 유일한 원본이다(계획서에 복사하지 않는다). |
+
+### 12.3 테스트
+
+- `config.test.ts`: 기본값 `en`; `lang: "ko"` 수용; `lang: "fr"` 거부 메시지. 기존 픽스처는 한국어 문서이므로 `test/helpers.ts`의 `DEFAULT_CONFIG.lang`은 `'ko'`로 두어 기존 테스트가 그대로 통과한다.
+- `init.test.ts`: `init`(옵션 없음) → 영어 템플릿·`lang: "en"`, 출력 줄 영어; `init --lang ko` → 지금과 같은 한국어 파일; 두 경우 모두 `init` 뒤 `check` 경고 0.
+- `rules.test.ts`: 영어 어휘로 쓴 상세·개요 픽스처에서 `missing-section`·`section-order`·`missing-flow`가 영어 제목으로 동작하고 메시지가 영어다; `[needs confirmation]`만 쓴 문서의 `open-question` 수.
+- `init-skills.test.ts`: `--lang en --skills all`이 영어 스킬을 설치하고, 네 스킬의 H2 수와 번호 항목 수가 한국어판과 같다; writer(en)에 `[needs confirmation]`·`concepts/`·`log add` 규약 문장이 있다. 영어 writer도 150줄 이하.
+- 기존 테스트 69개는 그대로 통과한다.
+
+### 12.4 하지 않는 것
+
+- 한 저장소 안의 두 언어 혼용. `lang`은 하나다.
+- 문서 본문의 자동 번역.
+- 로그 항목의 `kind` 번역. `ingest`·`query`·`lint`·`drift`·`change`·`decision`은 양쪽 모두 영문 식별자다.
