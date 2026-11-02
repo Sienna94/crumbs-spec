@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { after, test } from 'node:test';
 import { checkRepo } from '../src/check.js';
 import type { Finding } from '../src/model.js';
@@ -71,11 +73,13 @@ test('13. broken-link: 없는 대상은 줄 번호와 함께 오류, 제외 템�
   ]);
 });
 
-test('13a. broken-link 철자: 링크 철자가 디스크 파일과 다르면 macOS에서는 철자 오류 하나만 내고 도달 불가를 더하지 않으며, 다른 파일 시스템에서는 일반 대상 없음 오류다', () => {
+test('13a. broken-link 철자: 대소문자를 구분하지 않는 파일 시스템에서는 철자 오류 하나만 내고 도달 불가를 더하지 않으며, 구분하는 파일 시스템에서는 일반 대상 없음 오류다', () => {
   const overviewText = OVERVIEW_TEXT.replace('[로그인](login.md)', '[로그인](Login.md)');
-  const report = check(fixture({ [OVERVIEW]: overviewText }));
+  const root = makeRepo(fixture({ [OVERVIEW]: overviewText }));
+  const report = checkRepo(root);
   const broken = rulesNamed(report.findings, 'broken-link');
-  if (process.platform === 'darwin') {
+  const caseInsensitive = existsSync(join(root, 'docs/specs/auth/LOGIN.md'));
+  if (caseInsensitive) {
     assert.deepEqual(broken.map((f) => [f.file, f.line, f.message]), [
       [OVERVIEW, lineOf(overviewText, 'Login.md'), '링크 철자가 디스크의 파일과 다름: Login.md (파일: docs/specs/auth/login.md)'],
     ]);
