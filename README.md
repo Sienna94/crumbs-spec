@@ -112,7 +112,7 @@ The order for a repository that already has code and documents. Start with one d
    npx crumbs-spec init --spec-dir docs/crumbs --skills claude
    ```
 
-2. **Let the agent read the rules.** Claude Code only reads the crumbs block if `CLAUDE.md` contains the line `@AGENTS.md`. Skills are found automatically under `.claude/skills/` (Claude Code) and `.agents/skills/` (Codex).
+2. **Let the agent read the rules.** Codex and Claude Code (v2.1.277 or later) read `AGENTS.md` on their own. In a repository that also has a `CLAUDE.md` (or `.claude/CLAUDE.md` or `CLAUDE.local.md`), Claude Code reads only that file, so add the line `@AGENTS.md` to it to pull in the crumbs block. `init` prints a guide line in that case. Skills are found automatically under `.claude/skills/` (Claude Code) and `.agents/skills/` (Codex).
 
 3. **Do not migrate existing documents.** The writer treats code and tests as the only sources and does not read existing wikis, design notes or READMEs unless you name them as sources, because there is no way to know whether they still match the code. Copy the ones worth using as evidence (plans, contracts, decision records) into `docs/raw/` and ingest them one at a time with `crumbs-ingest`.
 
@@ -293,7 +293,7 @@ The kinds are `ingest` (a source was applied), `query` (an answer fed back), `li
 
 ## Skills
 
-`init --skills` installs the procedures an agent follows into `.claude/skills/<name>/SKILL.md` (Claude Code) and `.agents/skills/<name>/SKILL.md` (Codex). An existing `SKILL.md` is never overwritten; delete it and run `init --skills` again to upgrade. Claude Code reads the crumbs block only when `CLAUDE.md` contains `@AGENTS.md`.
+`init --skills` installs the procedures an agent follows into `.claude/skills/<name>/SKILL.md` (Claude Code) and `.agents/skills/<name>/SKILL.md` (Codex). An existing `SKILL.md` is never overwritten; delete it and run `init --skills` again to upgrade. When Claude Code reads the crumbs block is described in step 2 of [Adding it to an existing project](#adding-it-to-an-existing-project).
 
 Each generated SKILL.md starts with a comment naming the crumbs-spec version that produced it. Skills and templates follow the package version: a minor release may change their text, a patch release does not. To upgrade, delete the file and run `init --skills` again.
 

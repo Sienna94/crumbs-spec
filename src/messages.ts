@@ -28,7 +28,7 @@ export interface Messages {
   created: (path: string) => string;
   updated: (path: string) => string;
   next: string;
-  claudeGuide: string;
+  claudeGuide: (file: string) => string;
   agentsMarkers: string;
   rootMissing: (root: string) => string;
 
@@ -136,7 +136,7 @@ Example
     created: (path) => `created: ${path}`,
     updated: (path) => `updated: ${path}`,
     next: 'next: npx crumbs-spec check',
-    claudeGuide: 'guide: add "@AGENTS.md" to CLAUDE.md so Claude Code reads the crumbs rules',
+    claudeGuide: (file) => `guide: Claude Code reads ${file} instead of AGENTS.md; add "@AGENTS.md" to ${file} so it reads the crumbs rules`,
     agentsMarkers: 'AGENTS.md: crumbs markers are not paired',
     rootMissing: (root) => `root directory not found: ${root}`,
 
@@ -243,7 +243,7 @@ log add 옵션
     created: (path) => `생성: ${path}`,
     updated: (path) => `갱신: ${path}`,
     next: '다음: npx crumbs-spec check',
-    claudeGuide: '안내: Claude Code가 crumbs 규칙을 읽도록 CLAUDE.md에 "@AGENTS.md"를 추가하세요',
+    claudeGuide: (file) => `안내: Claude Code는 ${file} 파일이 있으면 AGENTS.md를 읽지 않으니, ${file}에 "@AGENTS.md"를 추가하세요`,
     agentsMarkers: 'AGENTS.md: crumbs 표시가 짝이 맞지 않음',
     rootMissing: (root) => `저장소 루트 디렉터리를 찾을 수 없음: ${root}`,
 

@@ -104,10 +104,10 @@ export function runInit(
   else if (agentsChanged) out.push(m.updated('AGENTS.md'));
   else out.push(m.skipped('AGENTS.md'));
 
-  // CLAUDE.md는 고치지 않고, 없거나 가져오기 줄이 없으면 안내한다.
-  const claudeAbs = join(root, 'CLAUDE.md');
-  if (!existsSync(claudeAbs) || !readFileSync(claudeAbs, 'utf8').includes('@AGENTS.md')) {
-    out.push(m.claudeGuide);
+  // Claude Code는 CLAUDE.md가 있으면 AGENTS.md를 읽지 않는다. 고치지 않고, 가져오기 줄이 없을 때만 안내한다.
+  const claudeFiles = ['CLAUDE.md', '.claude/CLAUDE.md'].filter((file) => existsSync(join(root, file)));
+  if (claudeFiles.length > 0 && !claudeFiles.some((file) => readFileSync(join(root, file), 'utf8').includes('@AGENTS.md'))) {
+    out.push(m.claudeGuide(claudeFiles[0]));
   }
   out.push(m.next);
   return out;

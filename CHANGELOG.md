@@ -12,6 +12,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Changed
 
 - The AGENTS block, the skills and the detail template say that evidence code paths are relative to `codeRoot` and that source material is cited as `<rawDir>/<file>`.
+- `init` prints the CLAUDE.md guide line only when `CLAUDE.md` or `.claude/CLAUDE.md` exists without `@AGENTS.md`, and names that file. Claude Code 2.1.277 and later reads `AGENTS.md` directly when there is no CLAUDE.md, so the guide was wrong there. The README says the same.
 
 ### Documentation
 

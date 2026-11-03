@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { after, test } from 'node:test';
 import { en } from '../src/templates/en.js';
@@ -113,18 +113,25 @@ test('32. 표시가 없는 기존 AGENTS.md: 원래 내용이 위에 보존되�
   assert.equal(count(agents, START), 1);
 });
 
-test('33. CLAUDE.md: 없거나 @AGENTS.md가 없으면 안내만 출력하고, 있으면 안내가 없으며, CLAUDE.md는 절대 고치지 않는다', () => {
+test('33. CLAUDE.md: 없으면 안내가 없고, CLAUDE.md나 .claude/CLAUDE.md에 @AGENTS.md가 없으면 안내하며, 있으면 안내가 없고, CLAUDE 파일은 절대 고치지 않는다', () => {
   const noClaude = tempDir();
   const absent = runCli(['init', '--lang', 'ko'], noClaude);
-  assert.ok(absent.stdout.includes('안내: Claude Code가 crumbs 규칙을 읽도록 CLAUDE.md에 "@AGENTS.md"를 추가하세요'));
-  assert.ok(!existsSync(join(noClaude, 'CLAUDE.md')), '안내만 하고 CLAUDE.md를 만들지 않는다');
+  assert.ok(!absent.stdout.includes('안내:'));
+  assert.ok(!existsSync(join(noClaude, 'CLAUDE.md')), 'CLAUDE.md를 만들지 않는다');
 
   const withoutImport = tempDir();
   const claudeText = '# 프로젝트 지침\n';
   writeFileSync(join(withoutImport, 'CLAUDE.md'), claudeText);
   const first = runCli(['init', '--lang', 'ko'], withoutImport);
-  assert.ok(first.stdout.includes('안내: Claude Code가 crumbs 규칙을 읽도록 CLAUDE.md에 "@AGENTS.md"를 추가하세요'));
+  assert.ok(first.stdout.includes('안내: Claude Code는 CLAUDE.md 파일이 있으면 AGENTS.md를 읽지 않으니, CLAUDE.md에 "@AGENTS.md"를 추가하세요'));
   assert.equal(readFileSync(join(withoutImport, 'CLAUDE.md'), 'utf8'), claudeText);
+
+  const nestedOnly = tempDir();
+  mkdirSync(join(nestedOnly, '.claude'), { recursive: true });
+  writeFileSync(join(nestedOnly, '.claude', 'CLAUDE.md'), claudeText);
+  const nested = runCli(['init', '--lang', 'ko'], nestedOnly);
+  assert.ok(nested.stdout.includes('안내: Claude Code는 .claude/CLAUDE.md 파일이 있으면 AGENTS.md를 읽지 않으니, .claude/CLAUDE.md에 "@AGENTS.md"를 추가하세요'));
+  assert.equal(readFileSync(join(nestedOnly, '.claude', 'CLAUDE.md'), 'utf8'), claudeText);
 
   const withImport = tempDir();
   const claudeWithImport = '# 프로젝트 지침\n\n@AGENTS.md\n';

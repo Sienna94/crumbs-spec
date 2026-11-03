@@ -112,7 +112,7 @@ npm에 [`crumbs-spec`](https://www.npmjs.com/package/crumbs-spec)으로 올라�
    npx crumbs-spec init --spec-dir docs/crumbs --skills claude
    ```
 
-2. **에이전트가 규칙을 읽게 해요.** Claude Code는 `CLAUDE.md`에 `@AGENTS.md` 한 줄이 있어야 crumbs 블록을 읽어요. 스킬은 `.claude/skills/`(Claude Code)와 `.agents/skills/`(Codex)에서 자동으로 찾아요.
+2. **에이전트가 규칙을 읽게 해요.** Codex와 Claude Code(v2.1.277 이상)는 `AGENTS.md`를 바로 읽어요. 다만 `CLAUDE.md`(또는 `.claude/CLAUDE.md`, `CLAUDE.local.md`)가 있는 저장소에서는 Claude Code가 그 파일만 읽으니, 거기에 `@AGENTS.md` 한 줄을 넣어 crumbs 블록을 가져와요. 이때 `init`이 안내를 출력해요. 스킬은 `.claude/skills/`(Claude Code)와 `.agents/skills/`(Codex)에서 자동으로 찾아요.
 
 3. **기존 문서는 옮기지 않아요.** writer는 코드와 테스트만 원본으로 삼고, 기존 위키·설계 메모·README는 사용자가 원본 자료로 지목하지 않는 한 읽지 않아요. 지금 코드와 맞는지 확인할 수 없기 때문이에요. 기존 문서 중 근거로 쓸 것(기획서, 계약서, 정책 결정 기록)은 `docs/raw/`에 복사해 두고 `crumbs-ingest`로 한 건씩 반영해요.
 
@@ -293,7 +293,7 @@ kind는 `ingest`(원본 자료 반영), `query`(답을 찾아 환류), `lint`, `
 
 ## 스킬
 
-`init --skills`는 에이전트가 crumbs 문서를 다루는 절차를 `.claude/skills/<이름>/SKILL.md`(Claude Code)와 `.agents/skills/<이름>/SKILL.md`(Codex)에 설치해요. 기존 `SKILL.md`는 덮어쓰지 않으니 새 버전으로 바꾸려면 지우고 다시 설치해요. Claude Code는 `CLAUDE.md`에 `@AGENTS.md`가 있어야 crumbs 블록의 규칙을 읽어요.
+`init --skills`는 에이전트가 crumbs 문서를 다루는 절차를 `.claude/skills/<이름>/SKILL.md`(Claude Code)와 `.agents/skills/<이름>/SKILL.md`(Codex)에 설치해요. 기존 `SKILL.md`는 덮어쓰지 않으니 새 버전으로 바꾸려면 지우고 다시 설치해요. Claude Code가 crumbs 블록을 언제 읽는지는 [기존 프로젝트에 추가하기](#기존-프로젝트에-추가하기) 2단계에 있어요.
 
 생성된 SKILL.md는 frontmatter 바로 뒤에 그것을 만든 crumbs-spec 버전을 적은 주석 한 줄을 둬요. 스킬과 템플릿은 패키지 버전을 따라요. 마이너 릴리스는 문구를 바꿀 수 있고 패치 릴리스는 바꾸지 않아요. 새 버전으로 올리려면 파일을 지우고 `init --skills`를 다시 실행해요.
 
@@ -306,35 +306,35 @@ kind는 `ingest`(원본 자료 반영), `query`(답을 찾아 환류), `lint`, `
 
 ## 사용 예시
 
-아래 예시는 모두 실험의 Nitro 백엔드로 crumbs-spec-conduit의 [`usage/`](https://github.com/Sienna94/crumbs-spec-conduit/tree/main/usage) 작업공간에서 실제로 돌린 결과예요. 예시 1은 실험의 Opus 5.5 writer예요. 예시 2~5는 요청문만 받은 Claude Sonnet 5.5 에이전트가 `AGENTS.md`를 읽고 스킬을 스스로 골랐고, 에이전트가 물은 것은 작성자가 관리자 입장에서 답했어요. 요청문은 실제로 보낸 영어 그대로 옮겼고, 파일을 바꾼 예시는 하나씩 커밋으로 남겨 링크했어요.
+아래 예시는 모두 실험의 Nitro 백엔드로 crumbs-spec-conduit의 [`usage/`](https://github.com/Sienna94/crumbs-spec-conduit/tree/main/usage) 작업공간에서 실제로 돌린 결과예요. 예시 1은 실험의 Opus 5.5 writer예요. 예시 2~5는 요청문만 받은 Claude Sonnet 5.5 에이전트가 `AGENTS.md`를 읽고 스킬을 스스로 골랐고, 에이전트가 물은 것은 작성자가 관리자 입장에서 답했어요. 요청문은 실제로는 영어로 보냈고, 여기서는 요청문과 `check` 출력을 한국어로 옮겼어요. 작업공간이 `lang: en`이라 실제 문서에는 질문 표시와 절 이름이 영어로 들어가 있어요. 파일을 바꾼 예시는 하나씩 커밋으로 남겨 링크했어요.
 
 ### 1. 기존 코드를 처음 문서화해요
 
 ```
-Document the code under ../vendor/nitro with crumbs-writer in "document existing code" mode,
-from code and tests only. Leave unconfirmed policies as questions and finish the whole thing.
+../vendor/nitro 아래 코드를 crumbs-writer의 "기존 코드 문서화" 모드로 문서화해 줘.
+코드와 테스트만 근거로 삼고, 확인하지 못한 정책은 질문으로 남기고 끝까지 해 줘.
 ```
 
-실험의 [writer 프롬프트](https://github.com/Sienna94/crumbs-spec-conduit/blob/main/eval/prompts/writer.md)를 줄인 형태예요. writer는 라우트 처리기부터 코드를 따라가며 API를 하위 디렉터리 네 개로 나누고, 상세 문서 21개와 개요를 만들었어요. 저장소에 단위 테스트 파일이 2개뿐이라 테스트로 확정된 정책은 6개, `[needs confirmation]` 질문은 45개였어요. 마지막에 `check`를 돌리고 로그를 남겼어요([커밋](https://github.com/Sienna94/crumbs-spec-conduit/commit/572b0db)).
+실험의 [writer 프롬프트](https://github.com/Sienna94/crumbs-spec-conduit/blob/main/eval/prompts/writer.md)를 줄인 형태예요. writer는 라우트 처리기부터 코드를 따라가며 API를 하위 디렉터리 네 개로 나누고, 상세 문서 21개와 개요를 만들었어요. 저장소에 단위 테스트 파일이 2개뿐이라 테스트로 확정된 정책은 6개, `[확인 필요]` 질문은 45개였어요. 마지막에 `check`를 돌리고 로그를 남겼어요([커밋](https://github.com/Sienna94/crumbs-spec-conduit/commit/572b0db)).
 
 ```
-crumbs check: 28 documents, 0 errors, 21 warnings
+crumbs check: 문서 28개, 오류 0개, 경고 21개
 ```
 
-경고 21개는 아직 질문이 남은 상세 문서 21개예요. 각 문서의 "Open questions" 절이 관리자가 정해야 할 목록이에요.
+경고 21개는 아직 질문이 남은 상세 문서 21개예요. 각 문서의 확인 필요 사항 절이 관리자가 정해야 할 목록이에요.
 
 ### 2. 답을 찾아요
 
 ```
-How many tags does GET /api/tags return, and in what order?
+GET /api/tags는 태그를 몇 개, 어떤 순서로 돌려줘?
 ```
 
-finder는 색인 → API 개요 → 글 개요 → [tag-list.md](https://github.com/Sienna94/crumbs-spec-conduit/blob/main/nitro/docs/specs/api/articles/tag-list.md) 순서로 스펙 문서 4개만 읽고, 코드는 보지 않은 채 답했어요. 태그는 최대 10개이고, 많이 쓰인 순서이며, 글 하나 이상이 쓰는 태그만 나오고 페이지 나눔은 없다고요. 같은 개수인 태그의 순서와 10개 제한의 근거는 아직 `[needs confirmation]`이라는 점도 함께 알렸어요. 바뀐 파일은 없어요.
+finder는 색인 → API 개요 → 글 개요 → [tag-list.md](https://github.com/Sienna94/crumbs-spec-conduit/blob/main/nitro/docs/specs/api/articles/tag-list.md) 순서로 스펙 문서 4개만 읽고, 코드는 보지 않은 채 답했어요. 태그는 최대 10개이고, 많이 쓰인 순서이며, 글 하나 이상이 쓰는 태그만 나오고 페이지 나눔은 없다고요. 같은 개수인 태그의 순서와 10개 제한의 근거는 아직 `[확인 필요]` 질문이라는 점도 함께 알렸어요. 바뀐 파일은 없어요.
 
 ### 3. 모르는 정책은 묻고, 답은 결정으로 남겨요
 
 ```
-I want to change how the tag list is ordered. What do I need to confirm first?
+태그 목록의 정렬 방식을 바꾸고 싶어. 먼저 무엇을 확인해야 해?
 ```
 
 질문 스킬은 요청이 건드리는 정책 8개를 찾아 코드로 확정된 3개를 표시하고, 나머지를 질문 7개로 만들었어요. "태그 목록이 GET /api/tags인지 글 안의 tagList인지"부터 "기존 클라이언트가 지금 순서에 기대는지"까지예요. 문서는 하나도 고치지 않고 멈췄어요. 답은 이랬어요. 대상은 GET /api/tags뿐이고, 많이 쓰인 순서를 유지하고, 같은 개수의 순서는 일부러 정하지 않으며, 10개 제한은 정렬 뒤에 그대로 적용해요. writer가 정책을 확정하고 `decision` 항목과 결정 링크를 남겼어요([로그](#로그) 참고). 그 과정에서 `check`가 두 가지를 잡았어요. 결정 링크가 `../../log.md`가 아니라 `../log.md`를 가리킨 것(`broken-link`), 그리고 현재 동작이 일곱 단계로 늘었는데 흐름도가 없는 것(`missing-flow`)이에요. 그래서 writer가 흐름도를 추가했어요([커밋](https://github.com/Sienna94/crumbs-spec-conduit/commit/7b86052)).
@@ -342,20 +342,20 @@ I want to change how the tag list is ordered. What do I need to confirm first?
 ### 4. 원본 자료를 반영해요
 
 ```
-The upstream API spec changed. Apply docs/raw/realworld-b8a37f1-validate-email-format.diff.
+상위 API 스펙이 바뀌었어. docs/raw/realworld-b8a37f1-validate-email-format.diff를 반영해 줘.
 ```
 
-자료는 RealWorld 스펙에 이메일 형식 검사를 추가한 실제 상위 커밋이에요. 반영 스킬은 자료를 읽고 색인을 따라 회원가입·로그인·정보 수정 문서를 찾은 뒤, 자료의 주장 4개를 정리했어요. 그리고 충돌에서 멈췄어요. 자료는 형식이 틀린 이메일에 422 "is invalid"를 기대하는데, 문서와 코드는 형식을 검사하지 않는다고 해요. 자료와 코드 중 무엇을 따를지 물어서, 문서는 현재 동작을 설명하므로 코드를 따르기로 했어요. 스킬은 회원가입 문서에 `Email format` 정책 하나를 두고 현재 동작과 상위 스펙을 인용한 질문을 적었어요. 로그인·정보 수정 문서에는 그 정책으로 가는 문장 하나씩만 넣고 `ingest` 항목을 남겼어요([커밋](https://github.com/Sienna94/crumbs-spec-conduit/commit/130946a)). 변경 목록을 확인받기 전에는 아무것도 고치지 않았어요.
+자료는 RealWorld 스펙에 이메일 형식 검사를 추가한 실제 상위 커밋이에요. 반영 스킬은 자료를 읽고 색인을 따라 회원가입·로그인·정보 수정 문서를 찾은 뒤, 자료의 주장 4개를 정리했어요. 그리고 충돌에서 멈췄어요. 자료는 형식이 틀린 이메일에 422 "is invalid"를 기대하는데, 문서와 코드는 형식을 검사하지 않는다고 해요. 자료와 코드 중 무엇을 따를지 물어서, 문서는 현재 동작을 설명하므로 코드를 따르기로 했어요. 스킬은 회원가입 문서에 이메일 형식 정책 하나를 두고 현재 동작과 상위 스펙을 인용한 질문을 적었어요. 로그인·정보 수정 문서에는 그 정책으로 가는 문장 하나씩만 넣고 `ingest` 항목을 남겼어요([커밋](https://github.com/Sienna94/crumbs-spec-conduit/commit/130946a)). 변경 목록을 확인받기 전에는 아무것도 고치지 않았어요.
 
 ### 5. 코드 변경을 문서에 반영해요
 
 ```
-I added email format validation to registration, login and account update
-(server/schemas/user.schema.ts, not committed yet). A malformed email now gets 422
-with {"errors":{"email":["is invalid"]}}. Update the docs.
+회원가입·로그인·정보 수정에 이메일 형식 검사를 추가했어
+(server/schemas/user.schema.ts, 아직 커밋 전). 이제 형식이 틀린 이메일은
+422와 {"errors":{"email":["is invalid"]}}를 받아. 문서를 갱신해 줘.
 ```
 
-writer는 `grep -rl 'user.schema' docs/specs`로 소유 문서를 찾았어요. 세 문서 모두 근거 절에 이 파일을 적어 두었기 때문이에요. `Email format`을 확정 정책으로 고쳐 예시 4의 질문을 닫고, 로그인·정보 수정의 연결 문장과 흐름도 두 개를 고쳤어요. 코드만으로 정해지지 않는 것, 즉 어떤 주소를 유효로 볼지와 빈 이메일이 "is invalid"도 함께 보고하는지는 추측하지 않고 새 질문으로 남겼어요. 실제로 빈 이메일에는 두 메시지가 모두 나와요. 코드와 문서는 한 커밋이에요([커밋](https://github.com/Sienna94/crumbs-spec-conduit/commit/32fd2f3)).
+writer는 `grep -rl 'user.schema' docs/specs`로 소유 문서를 찾았어요. 세 문서 모두 근거 절에 이 파일을 적어 두었기 때문이에요. 이메일 형식 정책을 확정 정책으로 고쳐 예시 4의 질문을 닫고, 로그인·정보 수정의 연결 문장과 흐름도 두 개를 고쳤어요. 코드만으로 정해지지 않는 것, 즉 어떤 주소를 유효로 볼지와 빈 이메일이 "is invalid"도 함께 보고하는지는 추측하지 않고 새 질문으로 남겼어요. 실제로 빈 이메일에는 두 메시지가 모두 나와요. 코드와 문서는 한 커밋이에요([커밋](https://github.com/Sienna94/crumbs-spec-conduit/commit/32fd2f3)).
 
 ### 6. CI에서 검사해요
 

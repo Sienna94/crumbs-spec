@@ -102,7 +102,6 @@ test('50. --skills 없음: 스킬을 만들지 않고 stdout은 1단계 출력�
       '생성: docs/specs/templates/detail.md',
       '생성: docs/raw/README.md',
       '생성: AGENTS.md',
-      '안내: Claude Code가 crumbs 규칙을 읽도록 CLAUDE.md에 "@AGENTS.md"를 추가하세요',
       '다음: npx crumbs-spec check',
     ].join('\n') + '\n',
   );
