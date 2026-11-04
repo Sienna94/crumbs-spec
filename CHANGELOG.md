@@ -3,6 +3,12 @@
 All notable changes to this project are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Documentation
+
+- README (both languages): a breadcrumb catchphrase leads the page, the Why section opens with the original motivation, prose is turned into bullets throughout, usage examples are rewritten as request → agent answer → result (with the resulting document text quoted) inside one collapsible block, exit codes move under Commands as "Success and failure", and the Principles, "Tests and compatibility" and Roadmap sections are reorganized or removed.
+
 ## [0.3.0] - 2026-11-03
 
 ### Fixed
