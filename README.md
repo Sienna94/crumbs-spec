@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/assets/crumbs-walk.gif" alt="An agent chasing bread crumbs and picking them up" width="320"></p>
+
 # crumbs-spec 🍞
 
 [한국어](README.ko.md) · **English**

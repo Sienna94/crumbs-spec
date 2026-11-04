@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/assets/crumbs-walk.gif" alt="빵부스러기를 주우며 쫓아가는 에이전트" width="320"></p>
+
 # crumbs-spec 🍞
 
 **한국어** · [English](README.md)
